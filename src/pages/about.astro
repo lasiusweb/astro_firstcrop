@@ -1,0 +1,53 @@
+---
+import StorefrontLayout from '../layouts/StorefrontLayout.astro';
+
+export const prerender = true;
+---
+
+<StorefrontLayout title="About — Firstcrop" description="Firstcrop.in makes micro-microbial biologicals that help Indian farmers grow more with less chemicals.">
+  <div class="container about-page">
+    <h1 class="about-title">Growing smarter, naturally</h1>
+    <p class="about-lead">
+      Firstcrop produces micro-microbial biologicals — bio-fertilizers, bio-fungicides, and
+      bio-insecticides — that restore soil health and reduce chemical dependency for Indian farmers.
+    </p>
+    <div class="about-grid">
+      <section class="about-card">
+        <h2>Our science</h2>
+        <p>
+          We culture carefully selected strains — mycorrhizae, Bacillus, Trichoderma, Beauveria,
+          Azotobacter — at high CFU counts, stabilized for Indian field conditions.
+        </p>
+      </section>
+      <section class="about-card">
+        <h2>Our promise</h2>
+        <p>
+          Living products with verified CFU counts, honest application rates, and support in your
+          language. If a batch isn't viable, we replace it.
+        </p>
+      </section>
+      <section class="about-card">
+        <h2>Our impact</h2>
+        <p>
+          Farmers using our programs report 30–50% reduction in chemical fertilizer use within two
+          seasons, with equal or better yields.
+        </p>
+      </section>
+    </div>
+  </div>
+</StorefrontLayout>
+
+<style>
+  .about-page { padding: var(--space-12) var(--space-4); max-width: 800px; margin-inline: auto; }
+  .about-title { font-size: 2rem; font-weight: 700; margin-bottom: var(--space-4); }
+  .about-lead { font-size: 1.125rem; color: var(--c-gray-600); line-height: 1.7; margin-bottom: var(--space-8); }
+  .about-grid { display: grid; gap: var(--space-4); }
+  @media (min-width: 768px) { .about-grid { grid-template-columns: repeat(3, 1fr); } }
+  .about-card {
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+  }
+  .about-card h2 { font-size: 1rem; font-weight: 700; margin-bottom: var(--space-2); }
+  .about-card p { font-size: 0.9375rem; color: var(--c-gray-600); line-height: 1.6; }
+</style>

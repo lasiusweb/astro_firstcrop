@@ -1,0 +1,198 @@
+---
+import StorefrontLayout from '../layouts/StorefrontLayout.astro';
+import ProductCard from '../components/storefront/ProductCard.astro';
+
+const query = Astro.url.searchParams.get('q') || '';
+
+// Server-side search — in production, uses Supabase FTS
+// For now, return empty (client will fetch via API)
+---
+
+<StorefrontLayout title={query ? `Search: ${query} — Firstcrop` : 'Search — Firstcrop'}>
+  <div class="container search-page">
+    <header class="search-header">
+      <h1 class="search-title">Search</h1>
+      <form class="search-form" action="/search" method="GET" role="search">
+        <label for="search-input" class="sr-only">Search products</label>
+        <input
+          type="search"
+          id="search-input"
+          name="q"
+          value={query}
+          placeholder="Search products…"
+          class="search-input"
+          autocomplete="off"
+          autofocus
+        />
+        <button type="submit" class="search-submit">Search</button>
+      </form>
+    </header>
+
+    {query && (
+      <div class="search-status" aria-live="polite">
+        <p id="search-status-text">Searching for "{query}"…</p>
+      </div>
+    )}
+
+    <div id="search-results" class="search-results" aria-live="polite">
+      <!-- Results populated by client script -->
+    </div>
+
+    <div id="search-empty" class="search-empty" style="display: none;">
+      <p>No products found. Try a different search term.</p>
+      <a href="/products" class="search-empty-link">Browse All Products →</a>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('search-input') as HTMLInputElement;
+    const resultsContainer = document.getElementById('search-results');
+    const statusText = document.getElementById('search-status-text');
+    const emptyState = document.getElementById('search-empty');
+
+    async function search(query: string) {
+      if (!query || query.length < 2) {
+        resultsContainer!.innerHTML = '';
+        emptyState!.style.display = 'none';
+        statusText!.textContent = '';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const { results } = await res.json();
+
+        if (results.length === 0) {
+          resultsContainer!.innerHTML = '';
+          emptyState!.style.display = 'block';
+          statusText!.textContent = `No results for "${query}"`;
+        } else {
+          emptyState!.style.display = 'none';
+          statusText!.textContent = `${results.length} result${results.length === 1 ? '' : 's'} for "${query}"`;
+          resultsContainer!.innerHTML = results.map((p: any) => `
+            <a href="/products/${p.slug}" class="search-result-card">
+              <img src="${p.image}" alt="${p.name}" width="80" height="80" loading="lazy" />
+              <div class="search-result-info">
+                <h3 class="search-result-name">${p.name}</h3>
+                <p class="search-result-price numeric">₹${p.price}</p>
+              </div>
+            </a>
+          `).join('');
+        }
+      } catch {
+        statusText!.textContent = 'Search failed. Please try again.';
+      }
+    }
+
+    // Search on page load if query exists
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialQuery = urlParams.get('q');
+    if (initialQuery) search(initialQuery);
+
+    // Search on form submit
+    document.querySelector('.search-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = input?.value.trim();
+      if (q) {
+        history.pushState(null, '', `/search?q=${encodeURIComponent(q)}`);
+        search(q);
+      }
+    });
+  </script>
+</StorefrontLayout>
+
+<style>
+  .search-page {
+    padding: var(--space-8) var(--space-4);
+    max-width: 800px;
+    margin-inline: auto;
+  }
+  .search-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-4);
+  }
+  .search-form {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+  }
+  .search-input {
+    flex: 1;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color var(--dur-micro) var(--ease-out);
+  }
+  .search-input:focus {
+    border-color: var(--c-green-600);
+  }
+  .search-submit {
+    padding: var(--space-3) var(--space-6);
+    background: var(--c-green-600);
+    color: var(--c-white);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    min-height: 44px;
+    transition: background var(--dur-base) var(--ease-out);
+  }
+  .search-submit:hover {
+    background: var(--c-green-700);
+  }
+  .search-status {
+    margin-bottom: var(--space-4);
+    font-size: 0.875rem;
+    color: var(--c-gray-600);
+  }
+  .search-results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .search-result-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-md);
+    transition: border-color var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
+    text-decoration: none;
+    color: inherit;
+  }
+  .search-result-card:hover {
+    border-color: var(--c-green-200, var(--c-green-100));
+    box-shadow: var(--shadow-sm);
+  }
+  .search-result-card img {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .search-result-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-1);
+  }
+  .search-result-price {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-green-700);
+  }
+  .search-empty {
+    text-align: center;
+    padding: var(--space-12) 0;
+    color: var(--c-gray-600);
+  }
+  .search-empty-link {
+    display: inline-block;
+    margin-top: var(--space-3);
+    color: var(--c-green-600);
+    font-weight: 600;
+  }
+</style>

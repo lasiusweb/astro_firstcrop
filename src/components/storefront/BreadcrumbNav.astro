@@ -1,0 +1,69 @@
+---
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+
+// Schema.org BreadcrumbList
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: items.map((item, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: item.label,
+    ...(item.href ? { item: new URL(item.href, Astro.site || 'https://firstcrop.in').href } : {}),
+  })),
+};
+---
+
+<nav aria-label="Breadcrumb">
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  <ol class="breadcrumb">
+    {items.map((item, i) => (
+      <li class="breadcrumb-item">
+        {i < items.length - 1 ? (
+          <a href={item.href} class="breadcrumb-link">{item.label}</a>
+        ) : (
+          <span aria-current="page" class="breadcrumb-current">{item.label}</span>
+        )}
+        {i < items.length - 1 && <span class="breadcrumb-sep" aria-hidden="true">/</span>}
+      </li>
+    ))}
+  </ol>
+</nav>
+
+<style>
+  .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-4) 0;
+    font-size: 0.8125rem;
+  }
+  .breadcrumb-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .breadcrumb-link {
+    color: var(--c-gray-600);
+    transition: color var(--dur-micro) var(--ease-out);
+  }
+  .breadcrumb-link:hover {
+    color: var(--c-green-600);
+  }
+  .breadcrumb-sep {
+    color: var(--c-gray-400);
+  }
+  .breadcrumb-current {
+    color: var(--c-gray-400);
+  }
+</style>

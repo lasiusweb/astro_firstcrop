@@ -1,0 +1,408 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import CartDrawer from '../components/cart/CartDrawer.tsx';
+import SearchDrawer from '../components/storefront/SearchDrawer.tsx';
+import Toast from '../components/storefront/Toast.tsx';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="logo" aria-label="Firstcrop Home">
+        <span class="logo-text">Firstcrop</span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="/products" class="nav-link">Shop</a>
+        <a href="/categories/soil-treatment" class="nav-link">Soil</a>
+        <a href="/categories/crop-protection" class="nav-link">Crops</a>
+        <a href="/categories/compost-bio" class="nav-link">Bio</a>
+        <a href="/learn" class="nav-link">Learn</a>
+      </nav>
+
+      <div class="header-actions">
+        <button id="search-toggle" aria-label="Search" class="icon-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+        <a href="/account" aria-label="Account" class="icon-btn hide-mobile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </a>
+        <button id="cart-toggle" aria-label="Cart" class="icon-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          <span id="cart-count" class="cart-count" aria-live="polite"></span>
+        </button>
+        <button id="mobile-menu-toggle" aria-label="Menu" class="icon-btn hide-desktop" aria-expanded="false">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Nav Drawer -->
+    <div id="mobile-nav" class="mobile-nav" aria-hidden="true">
+      <nav aria-label="Mobile navigation">
+        <a href="/" class="mobile-nav-link">Home</a>
+        <a href="/products" class="mobile-nav-link">Shop</a>
+        <a href="/categories/soil-treatment" class="mobile-nav-link">Soil Treatment</a>
+        <a href="/categories/crop-protection" class="mobile-nav-link">Crop Protection</a>
+        <a href="/categories/compost-bio" class="mobile-nav-link">Compost & Bio</a>
+        <a href="/categories/tools" class="mobile-nav-link">Tools</a>
+        <a href="/learn" class="mobile-nav-link">Learn</a>
+        <a href="/account" class="mobile-nav-link">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main id="main-content">
+    <slot />
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h3 class="footer-heading">Shop</h3>
+          <a href="/categories/soil-treatment" class="footer-link">Soil Treatment</a>
+          <a href="/categories/crop-protection" class="footer-link">Crop Protection</a>
+          <a href="/categories/compost-bio" class="footer-link">Compost & Bio</a>
+          <a href="/categories/tools" class="footer-link">Tools</a>
+        </div>
+        <div class="footer-col">
+          <h3 class="footer-heading">Learn</h3>
+          <a href="/blog" class="footer-link">Blog</a>
+          <a href="/learn" class="footer-link">How-To Guides</a>
+          <a href="/about" class="footer-link">About Us</a>
+        </div>
+        <div class="footer-col">
+          <h3 class="footer-heading">Support</h3>
+          <a href="/account/orders" class="footer-link">Order History</a>
+          <a href="/privacy" class="footer-link">Privacy Policy</a>
+          <a href="/terms" class="footer-link">Terms of Service</a>
+        </div>
+        <div class="footer-col">
+          <h3 class="footer-heading">Firstcrop</h3>
+          <p class="footer-text">Micro-microbial biologicals for Indian farmers. Grow smarter, grow natural.</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-text">&copy; {new Date().getFullYear()} Firstcrop.in. All rights reserved.</p>
+      </div>
+    </div>
+    <script>
+    // Server-rendered pages can't hydrate the badge — fetch count on load
+    async function refreshCartBadge() {
+      try {
+        const res = await fetch('/api/cart/get');
+        if (!res.ok) return;
+        const data = await res.json();
+        const count = (data.items || []).reduce((sum: number, i: any) => sum + (i.quantity || 0), 0);
+        const badge = document.getElementById('cart-count');
+        if (badge) badge.textContent = count > 0 ? String(count) : '';
+      } catch { /* ignore */ }
+    }
+    refreshCartBadge();
+    window.addEventListener('firstcrop:cart-updated', refreshCartBadge);
+  </script>
+</footer>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="mobile-bottom-nav hide-desktop" aria-label="Quick navigation">
+    <a href="/" class="bottom-nav-item" aria-label="Home">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+      <span>Home</span>
+    </a>
+    <a href="/products" class="bottom-nav-item" aria-label="Shop">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span>Shop</span>
+    </a>
+    <button id="mobile-search-toggle" class="bottom-nav-item" aria-label="Search">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <span>Search</span>
+    </button>
+    <a href="/cart" class="bottom-nav-item" aria-label="Cart">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+      <span>Cart</span>
+    </a>
+    <a href="/account" class="bottom-nav-item" aria-label="Account">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Account</span>
+    </a>
+  </nav>
+
+  <!-- Mobile Menu Script -->
+  <script>
+    const toggle = document.getElementById('mobile-menu-toggle');
+    const nav = document.getElementById('mobile-nav');
+    toggle?.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      nav?.setAttribute('aria-hidden', String(expanded));
+      document.body.style.overflow = expanded ? '' : 'hidden';
+    });
+  </script>
+
+  <!-- Overlay Islands (cart, search, toasts) -->
+  <CartDrawer client:load />
+  <SearchDrawer client:load />
+  <Toast client:load />
+
+  <script>
+    const CART_OPEN_EVENT = 'firstcrop:cart-open';
+    const SEARCH_OPEN_EVENT = 'firstcrop:search-open';
+    const CART_UPDATED_EVENT = 'firstcrop:cart-updated';
+
+    const intent = (window.__firstcropIntent = window.__firstcropIntent || { open: { cart: false, search: false } });
+
+    // Record the open intent so a click captured before a client island mounts
+    // (i.e. before its event listener exists) still opens the drawer once it
+    // hydrates. Without this, a tap during hydration is silently dropped.
+    const openCart = () => {
+      intent.open.cart = true;
+      window.dispatchEvent(new CustomEvent(CART_OPEN_EVENT));
+    };
+    const openSearch = () => {
+      intent.open.search = true;
+      window.dispatchEvent(new CustomEvent(SEARCH_OPEN_EVENT));
+    };
+
+    document.getElementById('cart-toggle')?.addEventListener('click', openCart);
+    document.getElementById('search-toggle')?.addEventListener('click', openSearch);
+    document.getElementById('mobile-search-toggle')?.addEventListener('click', openSearch);
+
+    async function refreshCartCount() {
+      const badge = document.getElementById('cart-count');
+      if (!badge) return;
+      try {
+        const res = await fetch('/api/cart/get');
+        const data = await res.json();
+        const count = (data.items || []).reduce(
+          (sum: number, item: { quantity: number }) => sum + item.quantity,
+          0
+        );
+        badge.textContent = count > 0 ? String(count) : '';
+      } catch {
+        badge.textContent = '';
+      }
+    }
+
+    refreshCartCount();
+    window.addEventListener(CART_UPDATED_EVENT, refreshCartCount);
+  </script>
+</BaseLayout>
+
+<style>
+  /* Header */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--c-gray-100);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  .logo-text {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--c-green-700);
+  }
+
+  .desktop-nav {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .desktop-nav {
+      display: flex;
+      gap: var(--space-6);
+    }
+  }
+
+  .nav-link {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--c-gray-600);
+    transition: color var(--dur-micro) var(--ease-out);
+  }
+
+  .nav-link:hover {
+    color: var(--c-green-700);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    color: var(--c-gray-600);
+    transition: background var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+    position: relative;
+  }
+
+  .icon-btn:hover {
+    background: var(--c-gray-100);
+    color: var(--c-gray-900);
+  }
+
+  .cart-count {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    background: var(--c-green-600);
+    color: var(--c-white);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  /* Mobile Nav */
+  .mobile-nav {
+    display: none;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--c-white);
+    z-index: 99;
+    padding: var(--space-4);
+    overflow-y: auto;
+  }
+
+  .mobile-nav[aria-hidden="false"] {
+    display: block;
+  }
+
+  .mobile-nav-link {
+    display: block;
+    padding: var(--space-3) 0;
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--c-gray-800);
+    border-bottom: 1px solid var(--c-gray-100);
+  }
+
+  /* Footer */
+  .site-footer {
+    background: var(--c-gray-50);
+    border-top: 1px solid var(--c-gray-100);
+    padding: var(--space-12) 0 var(--space-6);
+    margin-top: var(--space-16);
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-8);
+  }
+
+  @media (min-width: 768px) {
+    .footer-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .footer-heading {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-3);
+  }
+
+  .footer-link {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--c-gray-600);
+    padding: var(--space-1) 0;
+    transition: color var(--dur-micro) var(--ease-out);
+  }
+
+  .footer-link:hover {
+    color: var(--c-green-700);
+  }
+
+  .footer-text {
+    font-size: 0.875rem;
+    color: var(--c-gray-600);
+    line-height: 1.6;
+  }
+
+  .footer-bottom {
+    margin-top: var(--space-8);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--c-gray-200);
+  }
+
+  /* Mobile Bottom Nav */
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--c-white);
+    border-top: 1px solid var(--c-gray-100);
+    display: flex;
+    justify-content: space-around;
+    padding: var(--space-1) 0;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-1) var(--space-2);
+    font-size: 0.625rem;
+    color: var(--c-gray-400);
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    transition: color var(--dur-micro) var(--ease-out);
+  }
+
+  .bottom-nav-item:hover,
+  .bottom-nav-item[aria-current="page"] {
+    color: var(--c-green-600);
+  }
+
+  /* Add bottom padding to main when mobile bottom nav is visible */
+  @media (max-width: 767px) {
+    main {
+      padding-bottom: 72px;
+    }
+  }
+</style>

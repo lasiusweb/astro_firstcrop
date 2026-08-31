@@ -1,0 +1,47 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getCollection, render } from 'astro:content';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<StorefrontLayout title={`${post.data.title} — Firstcrop Blog`} description={post.data.description}>
+  <article class="container blog-post">
+    <a href="/blog" class="blog-back">← All Posts</a>
+    <span class="blog-tag">{post.data.tag}</span>
+    <h1 class="blog-post-title">{post.data.title}</h1>
+    <time class="blog-date" datetime={post.data.pubDate.toISOString()}>
+      {post.data.pubDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+    </time>
+    <div class="prose">
+      <Content />
+    </div>
+  </article>
+</StorefrontLayout>
+
+<style>
+  .blog-post { padding: var(--space-8) var(--space-4); max-width: 720px; margin-inline: auto; }
+  .blog-back { display: inline-block; color: var(--c-green-600); font-weight: 500; margin-bottom: var(--space-4); }
+  .blog-tag {
+    display: inline-block; font-size: 0.75rem; font-weight: 600; color: var(--c-green-700);
+    background: var(--c-green-50); padding: 2px 10px; border-radius: var(--radius-full); margin-bottom: var(--space-2);
+  }
+  .blog-post-title { font-size: 1.75rem; font-weight: 700; margin-bottom: var(--space-2); }
+  .blog-date { display: block; font-size: 0.875rem; color: var(--c-gray-400); margin-bottom: var(--space-6); }
+  .prose :global(h2) { font-size: 1.25rem; font-weight: 700; margin: var(--space-6) 0 var(--space-3); }
+  .prose :global(h3) { font-size: 1rem; font-weight: 600; margin: var(--space-5) 0 var(--space-2); }
+  .prose :global(p) { color: var(--c-gray-700); line-height: 1.7; margin-bottom: var(--space-4); }
+  .prose :global(ul), .prose :global(ol) { color: var(--c-gray-700); line-height: 1.7; margin: 0 0 var(--space-4) var(--space-5); }
+  .prose :global(a) { color: var(--c-green-600); font-weight: 500; }
+  .prose :global(table) { width: 100%; border-collapse: collapse; margin-bottom: var(--space-4); font-size: 0.9375rem; }
+  .prose :global(th), .prose :global(td) { border: 1px solid var(--c-gray-200); padding: var(--space-2) var(--space-3); text-align: left; }
+  .prose :global(th) { background: var(--c-green-50); }
+</style>

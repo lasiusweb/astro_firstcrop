@@ -1,0 +1,89 @@
+---
+import { createServerClient } from '../../lib/supabase/server';
+
+interface Props {
+  productId: string;
+  price: number;
+  comparePrice?: number;
+}
+
+const { productId, price, comparePrice } = Astro.props;
+
+// Live price + stock per request (server island props carry IDs only)
+let livePrice = price;
+let liveComparePrice = comparePrice;
+let inStock = true;
+
+try {
+  const supabase = createServerClient(Astro.cookies, { request: Astro.request });
+  const { data } = await supabase
+    .from('products')
+    .select('price, compare_price, stock_qty')
+    .eq('id', productId)
+    .single();
+  if (data) {
+    livePrice = Number(data.price);
+    liveComparePrice = data.compare_price != null ? Number(data.compare_price) : undefined;
+    inStock = Number(data.stock_qty) > 0;
+  }
+} catch (err) {
+  console.error('[PriceDisplay] live fetch failed, using fallback:', (err as Error).message);
+}
+
+const discount = liveComparePrice ? Math.round(((liveComparePrice - livePrice) / liveComparePrice) * 100) : 0;
+---
+
+<div class="price-display">
+  <div class="price-main">
+    <span class="price-current numeric">₹{livePrice.toFixed(0)}</span>
+    {liveComparePrice && <span class="price-compare numeric">₹{liveComparePrice.toFixed(0)}</span>}
+    {discount > 0 && <span class="price-discount">Save {discount}%</span>}
+  </div>
+  <div class="stock-status">
+    {inStock ? (
+      <span class="stock-in">In Stock</span>
+    ) : (
+      <span class="stock-out">Out of Stock</span>
+    )}
+  </div>
+</div>
+
+<style>
+  .price-display {
+    padding: var(--space-3) 0;
+  }
+  .price-main {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+  }
+  .price-current {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--c-green-700);
+  }
+  .price-compare {
+    font-size: 1rem;
+    color: var(--c-gray-400);
+    text-decoration: line-through;
+  }
+  .price-discount {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c-success);
+    background: var(--c-green-50);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+  }
+  .stock-in {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-success);
+  }
+  .stock-out {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-error);
+  }
+</style>

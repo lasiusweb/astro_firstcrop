@@ -1,0 +1,33 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getCollection, render } from 'astro:content';
+
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const articles = await getCollection('learn');
+  return articles.map((article) => ({ params: { slug: article.id }, props: { article } }));
+}
+
+const { article } = Astro.props;
+const { Content } = await render(article);
+---
+
+<StorefrontLayout title={`${article.data.title} — Firstcrop Learn`} description={article.data.description}>
+  <article class="container learn-post">
+    <a href="/learn" class="learn-back">← All Articles</a>
+    <h1 class="learn-post-title">{article.data.title}</h1>
+    <div class="prose">
+      <Content />
+    </div>
+  </article>
+</StorefrontLayout>
+
+<style>
+  .learn-post { padding: var(--space-8) var(--space-4); max-width: 720px; margin-inline: auto; }
+  .learn-back { display: inline-block; color: var(--c-green-600); font-weight: 500; margin-bottom: var(--space-4); }
+  .learn-post-title { font-size: 1.75rem; font-weight: 700; margin-bottom: var(--space-6); }
+  .prose :global(h2) { font-size: 1.25rem; font-weight: 700; margin: var(--space-6) 0 var(--space-3); }
+  .prose :global(p) { color: var(--c-gray-700); line-height: 1.7; margin-bottom: var(--space-4); }
+  .prose :global(ul), .prose :global(ol) { color: var(--c-gray-700); line-height: 1.7; margin: 0 0 var(--space-4) var(--space-5); }
+</style>

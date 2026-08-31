@@ -1,0 +1,131 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getClaims } from '../../lib/auth/get-claims';
+
+const claims = await getClaims(Astro);
+if (!claims || claims.role !== 'admin') {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<DashboardLayout title="Orders — Firstcrop Admin">
+  <div class="admin-orders">
+    <header class="page-header">
+      <h1 class="page-title">Orders</h1>
+    </header>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Customer</th>
+            <th>Status</th>
+            <th class="text-right">Total</th>
+            <th>Date</th>
+            <th>Set Status</th>
+          </tr>
+        </thead>
+        <tbody id="orders-tbody">
+          <tr><td colspan="6" class="loading-text">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    async function loadOrders() {
+      try {
+        const res = await fetch('/api/admin/orders');
+        const { orders } = await res.json();
+        const tbody = document.getElementById('orders-tbody')!;
+        if (!orders?.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty-text">No orders found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = orders.map((o: any) => {
+          const options = (NEXT_STATUSES[o.status] || [])
+            .map((s: string) => `<option value="${s}">${s}</option>`)
+            .join('');
+          return `
+          <tr data-id="${o.id}">
+            <td><span class="order-link">#${o.id.slice(0,8).toUpperCase()}</span></td>
+            <td>${o.address_name || '\u2014'}<br/><span class="cell-sub">${o.address_phone || ''}</span></td>
+            <td><span class="status-badge status-${o.status}">${o.status}</span></td>
+            <td class="text-right numeric">\u20B9${o.total.toFixed(0)}</td>
+            <td>${new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
+            <td>
+              ${options
+                ? `<select class="status-select" aria-label="Set order status"><option value="">Choose\u2026</option>${options}</select>`
+                : '<span class="cell-sub">Final</span>'}
+            </td>
+          </tr>`;
+        }).join('');
+      } catch { console.error('Failed to load orders'); }
+    }
+
+    // Mirrors ALLOWED_TRANSITIONS in src/lib/orders.ts
+    const NEXT_STATUSES: Record<string, string[]> = {
+      pending: ['paid', 'cancelled'],
+      paid: ['shipped', 'refunded'],
+      shipped: ['delivered'],
+      delivered: ['refunded'],
+      cancelled: [],
+      refunded: [],
+    };
+
+    document.getElementById('orders-tbody')?.addEventListener('change', async (e) => {
+      const select = (e.target as HTMLElement).closest<HTMLSelectElement>('select.status-select');
+      if (!select || !select.value) return;
+      const row = select.closest<HTMLTableRowElement>('tr')!;
+      const orderId = row.dataset.id!;
+      const status = select.value;
+      select.disabled = true;
+      try {
+        const res = await fetch('/api/admin/orders', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, status }),
+        });
+        if (res.ok) {
+          loadOrders();
+        } else {
+          const { error } = await res.json();
+          alert(error || 'Transition failed');
+          select.disabled = false;
+        }
+      } catch {
+        alert('Transition failed');
+        select.disabled = false;
+      }
+    });
+
+    loadOrders();
+  </script>
+</DashboardLayout>
+
+<style>
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
+  .page-title { font-size: 1.25rem; font-weight: 600; }
+  .table-wrap { background: var(--c-white); border: 1px solid var(--c-gray-100); border-radius: var(--radius-lg); overflow-x: auto; }
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th { text-align: left; font-size: 0.6875rem; font-weight: 600; color: var(--c-gray-500); text-transform: uppercase; letter-spacing: 0.05em; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--c-gray-100); background: var(--c-gray-50); white-space: nowrap; }
+  .data-table td { padding: var(--space-3) var(--space-4); font-size: 0.8125rem; border-bottom: 1px solid var(--c-gray-50); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .text-right { text-align: right; }
+  .order-link { font-weight: 600; color: var(--c-green-600); }
+  .cell-sub { font-size: 0.75rem; color: var(--c-gray-500); }
+  .status-badge { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 8px; border-radius: var(--radius-full); }
+  .status-paid { background: var(--c-green-50, #dcfce7); color: var(--c-green-700); }
+  .status-pending { background: #fef3c7; color: #92400e; }
+  .status-shipped { background: #dbeafe; color: #1e40af; }
+  .loading-text, .empty-text { text-align: center; color: var(--c-gray-500); padding: var(--space-6); }
+  .status-select {
+    padding: 4px 8px;
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.75rem;
+    background: var(--c-white);
+    min-height: 32px;
+  }
+  .status-select:disabled { opacity: 0.5; }
+</style>

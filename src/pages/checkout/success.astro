@@ -1,0 +1,109 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { createServerClient } from '../../lib/supabase/server';
+import { escapeHtml } from '../../lib/html';
+
+export const prerender = false;
+
+const orderId = Astro.url.searchParams.get('order');
+const claims = Astro.locals.claims;
+
+if (!claims) {
+  return Astro.redirect('/auth/login');
+}
+
+let order: any = null;
+if (orderId && /^[0-9a-f-]{36}$/i.test(orderId)) {
+  const supabase = createServerClient(Astro.cookies, { request: Astro.request });
+  const { data } = await supabase
+    .from('orders')
+    .select('id, status, total, address_name')
+    .eq('id', orderId)
+    .eq('user_id', claims.userId)
+    .single();
+  order = data;
+}
+
+if (!order) {
+  return Astro.redirect('/account/orders');
+}
+
+const orderIdShort = order.id.slice(0, 8).toUpperCase();
+---
+
+<StorefrontLayout title={`Order Confirmed — Firstcrop`}>
+  <div class="container confirmation-page">
+    <div class="order-confirmation">
+      <div class="confirmation-icon" aria-hidden="true">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--c-green-600)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <h1 class="confirmation-title">Order Confirmed!</h1>
+      <p class="confirmation-msg" aria-live="polite">
+        {order.status === 'paid'
+          ? 'Thank you! Your payment was received and your order is being prepared.'
+          : 'Your order has been placed. Payment is pending confirmation — you will be notified once it is received.'}
+      </p>
+      <p class="confirmation-order-id">Order #{orderIdShort}</p>
+      <p class="confirmation-msg">Total: ₹{Number(order.total).toFixed(2)}</p>
+      <div class="confirmation-actions">
+        <a href="/account/orders" class="confirmation-btn">View My Orders</a>
+        <a href="/products" class="confirmation-btn secondary">Continue Shopping</a>
+      </div>
+    </div>
+  </div>
+</StorefrontLayout>
+
+<style>
+  .confirmation-page {
+    padding: var(--space-12) var(--space-4);
+  }
+  .order-confirmation {
+    text-align: center;
+    padding: var(--space-10) 0;
+  }
+  .confirmation-icon {
+    margin-bottom: var(--space-4);
+  }
+  .confirmation-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+  .confirmation-msg {
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-4);
+  }
+  .confirmation-order-id {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 600;
+    color: var(--c-green-700);
+    margin-bottom: var(--space-2);
+  }
+  .confirmation-actions {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .confirmation-btn {
+    padding: var(--space-3) var(--space-6);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    background: var(--c-green-600);
+    color: var(--c-white);
+    transition: background var(--dur-base) var(--ease-out);
+  }
+  .confirmation-btn:hover {
+    background: var(--c-green-700);
+  }
+  .confirmation-btn.secondary {
+    background: var(--c-gray-100);
+    color: var(--c-gray-700);
+  }
+  .confirmation-btn.secondary:hover {
+    background: var(--c-gray-200);
+  }
+</style>

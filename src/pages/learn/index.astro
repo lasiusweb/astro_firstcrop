@@ -1,0 +1,42 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getCollection } from 'astro:content';
+
+export const prerender = true;
+
+const articles = (await getCollection('learn')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<StorefrontLayout title="Learn — Firstcrop" description="Learn how soil microbiology works and how to apply biologicals correctly.">
+  <div class="container learn-page">
+    <header class="learn-header">
+      <h1 class="learn-title">Learn</h1>
+      <p class="learn-desc">Practical knowledge for biological farming — from soil basics to dosing.</p>
+    </header>
+    <div class="learn-list">
+      {articles.map((article) => (
+        <a href={`/learn/${article.id}`} class="learn-row">
+          <h2 class="learn-row-title">{article.data.title}</h2>
+          <p class="learn-row-desc">{article.data.description}</p>
+        </a>
+      ))}
+    </div>
+  </div>
+</StorefrontLayout>
+
+<style>
+  .learn-page { padding: var(--space-8) var(--space-4); max-width: 800px; margin-inline: auto; }
+  .learn-title { font-size: 1.75rem; font-weight: 700; }
+  .learn-desc { color: var(--c-gray-600); margin: var(--space-2) 0 var(--space-8); }
+  .learn-list { display: flex; flex-direction: column; gap: var(--space-4); }
+  .learn-row {
+    display: block;
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    transition: border-color var(--dur-micro) var(--ease-out);
+  }
+  .learn-row:hover { border-color: var(--c-green-500); }
+  .learn-row-title { font-size: 1.125rem; font-weight: 700; margin-bottom: var(--space-1); }
+  .learn-row-desc { color: var(--c-gray-600); font-size: 0.9375rem; }
+</style>

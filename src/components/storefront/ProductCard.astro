@@ -1,0 +1,108 @@
+---
+interface Props {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  comparePrice?: number;
+  image: string;
+  shortDesc?: string;
+}
+
+const { id, name, slug, price, comparePrice, image, shortDesc } = Astro.props;
+const discount = comparePrice ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
+---
+
+<article class="product-card">
+  <a href={`/products/${slug}`} class="product-card-link" aria-label={`View ${name}`}>
+    <div class="product-card-image-wrap">
+      <img
+        src={image}
+        alt={name}
+        width="300"
+        height="300"
+        loading="lazy"
+        class="product-card-image"
+      />
+      {discount > 0 && <span class="product-card-badge">{discount}% off</span>}
+    </div>
+    <div class="product-card-body">
+      <h3 class="product-card-name truncate">{name}</h3>
+      {shortDesc && <p class="product-card-desc line-clamp-2">{shortDesc}</p>}
+      <div class="product-card-price">
+        <span class="product-price numeric">₹{price.toFixed(0)}</span>
+        {comparePrice && <span class="product-compare-price numeric">₹{comparePrice.toFixed(0)}</span>}
+      </div>
+    </div>
+  </a>
+</article>
+
+<style>
+  .product-card {
+    background: var(--c-white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--c-gray-100);
+    transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  }
+  .product-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+  .product-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+  .product-card-image-wrap {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--c-gray-50);
+  }
+  .product-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .product-card-badge {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    background: var(--c-green-600);
+    color: var(--c-white);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+  }
+  .product-card-body {
+    padding: var(--space-3);
+  }
+  .product-card-name {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-1);
+  }
+  .product-card-desc {
+    font-size: 0.8125rem;
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-2);
+  }
+  .product-card-price {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .product-price {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--c-green-700);
+  }
+  .product-compare-price {
+    font-size: 0.8125rem;
+    color: var(--c-gray-400);
+    text-decoration: line-through;
+  }
+</style>

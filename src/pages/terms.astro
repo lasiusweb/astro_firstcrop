@@ -1,0 +1,32 @@
+---
+import StorefrontLayout from '../layouts/StorefrontLayout.astro';
+
+export const prerender = true;
+---
+
+<StorefrontLayout title="Terms of Service — Firstcrop">
+  <div class="container legal-page">
+    <h1>Terms of Service</h1>
+    <p class="legal-updated">Last updated: August 2026</p>
+    <div class="legal-body">
+      <h2>Orders</h2>
+      <p>An order is confirmed once payment succeeds. Prices include GST as shown at checkout. Shipping is free above ₹500; otherwise ₹49 per order.</p>
+      <h2>Delivery</h2>
+      <p>We dispatch within 2–3 business days. Delivery timelines vary by pincode. Risk passes to you on delivery.</p>
+      <h2>Returns</h2>
+      <p>Living products are sensitive: unopened, undamaged boxes may be returned within 7 days of delivery. Opened biological packs cannot be resold and are not returnable unless the product arrived damaged.</p>
+      <h2>Warranty</h2>
+      <p>We warrant CFU counts at time of dispatch. Store as directed — improper storage voids viability claims.</p>
+      <h2>Governing law</h2>
+      <p>These terms are governed by the laws of India, with jurisdiction in Tamil Nadu.</p>
+    </div>
+  </div>
+</StorefrontLayout>
+
+<style>
+  .legal-page { padding: var(--space-10) var(--space-4); max-width: 720px; margin-inline: auto; }
+  h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: var(--space-1); }
+  .legal-updated { color: var(--c-gray-400); font-size: 0.875rem; margin-bottom: var(--space-6); }
+  .legal-body :global(h2) { font-size: 1rem; font-weight: 700; margin: var(--space-5) 0 var(--space-2); }
+  .legal-body :global(p) { color: var(--c-gray-600); line-height: 1.7; }
+</style>

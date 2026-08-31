@@ -1,0 +1,164 @@
+---
+import StorefrontLayout from '../layouts/StorefrontLayout.astro';
+import HeroSection from '../components/storefront/HeroSection.astro';
+import TrustBar from '../components/storefront/TrustBar.astro';
+import ProductCard from '../components/storefront/ProductCard.astro';
+import HowItWorks from '../components/storefront/HowItWorks.astro';
+import SocialProof from '../components/storefront/SocialProof.astro';
+
+import { getFeaturedProducts, toCardData } from '../lib/products';
+
+// Live catalog via Supabase (falls back gracefully when DB is unreachable)
+const featuredProducts = (await getFeaturedProducts(Astro.cookies, 4)).map(toCardData);
+---
+
+<StorefrontLayout title="Firstcrop — Micro-Microbial Biologicals for Indian Farmers">
+  <HeroSection />
+  <TrustBar />
+
+  <!-- Featured Products -->
+  <section class="featured-products">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Featured Products</h2>
+        <a href="/products" class="section-link">View All →</a>
+      </div>
+      <div class="products-grid">
+        {featuredProducts.map(product => (
+          <ProductCard {...product} />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <HowItWorks />
+  <SocialProof />
+
+  <!-- Blog Preview -->
+  <section class="blog-preview">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">From the Blog</h2>
+        <a href="/blog" class="section-link">Read More →</a>
+      </div>
+      <div class="blog-grid">
+        <article class="blog-card blog-card-featured">
+          <div class="blog-card-image">
+            <img src="https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800" alt="Soil health" width="800" height="400" loading="lazy" />
+          </div>
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Soil Health</span>
+            <h3 class="blog-card-title">5 Signs Your Soil Needs Microbial Treatment</h3>
+            <p class="blog-card-desc line-clamp-2">Learn the warning signs that indicate your soil microbiome is struggling, and how biologicals can restore vitality.</p>
+          </div>
+        </article>
+        <article class="blog-card">
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Getting Started</span>
+            <h3 class="blog-card-title">Beginner's Guide to Bio-Fertilizers</h3>
+            <p class="blog-card-desc line-clamp-2">Everything you need to know about choosing and applying bio-fertilizers for the first time.</p>
+          </div>
+        </article>
+        <article class="blog-card">
+          <div class="blog-card-body">
+            <span class="blog-card-tag">Success Story</span>
+            <h3 class="blog-card-title">How Ramesh Doubled His Tomato Yield</h3>
+            <p class="blog-card-desc line-clamp-2">A farmer's journey from chemical-dependent to fully organic using Firstcrop biologicals.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</StorefrontLayout>
+
+<style>
+  .featured-products {
+    padding: var(--space-12) 0;
+  }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+  }
+  .section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--c-gray-900);
+  }
+  .section-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-green-600);
+    transition: color var(--dur-micro) var(--ease-out);
+  }
+  .section-link:hover {
+    color: var(--c-green-700);
+  }
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--grid-gap);
+  }
+  @media (min-width: 768px) {
+    .products-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  .blog-preview {
+    padding: var(--space-12) 0;
+    background: var(--c-gray-50);
+  }
+  .blog-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+  @media (min-width: 768px) {
+    .blog-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .blog-card-featured {
+      grid-column: 1;
+      grid-row: 1 / 3;
+    }
+  }
+  .blog-card {
+    background: var(--c-white);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--c-gray-100);
+    transition: box-shadow var(--dur-base) var(--ease-out);
+  }
+  .blog-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+  .blog-card-image img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+  }
+  .blog-card-body {
+    padding: var(--space-4);
+  }
+  .blog-card-tag {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--c-green-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-2);
+  }
+  .blog-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-2);
+  }
+  .blog-card-desc {
+    font-size: 0.875rem;
+    color: var(--c-gray-600);
+    line-height: 1.5;
+  }
+</style>

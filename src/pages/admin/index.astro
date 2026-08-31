@@ -1,0 +1,79 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getClaims } from '../../lib/auth/get-claims';
+
+const claims = await getClaims(Astro);
+if (!claims || claims.role !== 'admin') {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<DashboardLayout title="Dashboard — Firstcrop Admin">
+  <div class="dashboard-overview">
+    <h1 class="page-title">Dashboard</h1>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Total Orders</span>
+        <span class="kpi-value" id="kpi-orders">&mdash;</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Revenue</span>
+        <span class="kpi-value" id="kpi-revenue">&mdash;</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Active Products</span>
+        <span class="kpi-value" id="kpi-products">&mdash;</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Customers</span>
+        <span class="kpi-value" id="kpi-customers">&mdash;</span>
+      </div>
+    </div>
+    <div class="dashboard-section">
+      <h2 class="section-title">Recent Orders</h2>
+      <div id="recent-orders" class="orders-table-wrap">
+        <p class="loading-text">Loading&hellip;</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadDashboard() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        const data = await res.json();
+        document.getElementById('kpi-orders')!.textContent = data.totalOrders ?? '0';
+        document.getElementById('kpi-revenue')!.textContent = `\u20B9${(data.revenue ?? 0).toLocaleString('en-IN')}`;
+        document.getElementById('kpi-products')!.textContent = data.activeProducts ?? '0';
+        document.getElementById('kpi-customers')!.textContent = data.customers ?? '0';
+        const ordersEl = document.getElementById('recent-orders')!;
+        if (data.recentOrders?.length) {
+          ordersEl.innerHTML = data.recentOrders.map((o: any) =>
+            `<div class="order-row"><span class="order-id">#${o.id.slice(0,8).toUpperCase()}</span><span>${o.address_name || '\u2014'}</span><span class="status-badge status-${o.status}">${o.status}</span><span class="numeric">\u20B9${o.total.toFixed(0)}</span></div>`
+          ).join('');
+        } else {
+          ordersEl.innerHTML = '<p class="empty-text">No orders yet.</p>';
+        }
+      } catch { console.error('Failed to load dashboard'); }
+    }
+    loadDashboard();
+  </script>
+</DashboardLayout>
+
+<style>
+  .page-title { font-size: 1.25rem; font-weight: 600; margin-bottom: var(--space-6); }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-8); }
+  .kpi-card { background: var(--c-white); border: 1px solid var(--c-gray-100); border-radius: var(--radius-lg); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-1); }
+  .kpi-label { font-size: 0.75rem; font-weight: 500; color: var(--c-gray-500); text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi-value { font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 1.75rem; font-weight: 700; color: var(--c-gray-900); font-variant-numeric: tabular-nums; }
+  .section-title { font-size: 0.875rem; font-weight: 600; color: var(--c-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-3); }
+  .orders-table-wrap { background: var(--c-white); border: 1px solid var(--c-gray-100); border-radius: var(--radius-lg); overflow: hidden; }
+  .order-row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--c-gray-50); font-size: 0.875rem; align-items: center; }
+  .order-row:last-child { border-bottom: none; }
+  .order-id { font-weight: 600; color: var(--c-green-600); }
+  .status-badge { display: inline-block; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; padding: 2px 8px; border-radius: var(--radius-full); }
+  .status-paid { background: var(--c-green-50, #dcfce7); color: var(--c-green-700); }
+  .status-pending { background: #fef3c7; color: #92400e; }
+  .status-shipped { background: #dbeafe; color: #1e40af; }
+  .loading-text, .empty-text { padding: var(--space-6); text-align: center; color: var(--c-gray-500); font-size: 0.875rem; }
+</style>

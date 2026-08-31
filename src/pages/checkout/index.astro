@@ -1,0 +1,399 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { requireAuth } from '../../lib/auth/guard';
+
+// Server-side auth guard — checkout is a protected route
+requireAuth(Astro);
+---
+
+<StorefrontLayout title="Checkout — Firstcrop">
+  <div class="container checkout-page">
+    <h1 class="checkout-title">Checkout</h1>
+
+    <!-- Progress Steps -->
+    <div class="checkout-steps">
+      <div class="step active" data-step="1">
+        <span class="step-num">1</span>
+        <span class="step-label">Address</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" data-step="2">
+        <span class="step-num">2</span>
+        <span class="step-label">Payment</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" data-step="3">
+        <span class="step-num">3</span>
+        <span class="step-label">Confirm</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Address -->
+    <div class="checkout-step-content" id="step-1">
+      <h2 class="step-title">Delivery Address</h2>
+      <form id="address-form" class="checkout-form">
+        <div class="form-group">
+          <label for="address_name">Full Name *</label>
+          <input type="text" id="address_name" name="name" required class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="address_phone">Phone *</label>
+          <input type="tel" id="address_phone" name="phone" required pattern="[6-9]\d{9}" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="address_line1">Address Line 1 *</label>
+          <input type="text" id="address_line1" name="line1" required class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="address_line2">Address Line 2</label>
+          <input type="text" id="address_line2" name="line2" class="form-input" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="address_city">City *</label>
+            <input type="text" id="address_city" name="city" required class="form-input" />
+          </div>
+          <div class="form-group">
+            <label for="address_state">State *</label>
+            <input type="text" id="address_state" name="state" required class="form-input" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="address_pincode">Pincode *</label>
+            <input type="text" id="address_pincode" name="pincode" required pattern="\d{6}" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label for="address_country">Country</label>
+            <input type="text" id="address_country" name="country" value="India" class="form-input" readonly />
+          </div>
+        </div>
+        <button type="submit" class="checkout-next-btn">Continue to Payment</button>
+      </form>
+    </div>
+
+    <!-- Step 2: Payment -->
+    <div class="checkout-step-content hidden" id="step-2">
+      <h2 class="step-title">Payment</h2>
+      <div class="payment-options">
+        <div class="payment-option selected">
+          <input type="radio" name="payment" value="easebuzz" id="pay-easebuzz" checked />
+          <label for="pay-easebuzz">Pay with Easebuzz (UPI / Cards / Netbanking)</label>
+        </div>
+      </div>
+      <div class="checkout-actions">
+        <button class="checkout-back-btn" data-back="1">← Back</button>
+        <button class="checkout-next-btn" id="place-order-btn">Place Order</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Confirmation -->
+    <div class="checkout-step-content hidden" id="step-3">
+      <div class="order-confirmation">
+        <div class="confirmation-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--c-green-600)" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <h2 class="confirmation-title">Order Placed!</h2>
+        <p class="confirmation-msg">Your order has been placed successfully. You'll receive a confirmation on your phone.</p>
+        <div class="confirmation-order-id" id="order-id-display"></div>
+        <div class="confirmation-actions">
+          <a href="/account/orders" class="confirmation-btn">View Orders</a>
+          <a href="/products" class="confirmation-btn confirmation-btn-secondary">Continue Shopping</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    const addressData: Record<string, string> = {};
+
+    function goToStep(step: number) {
+      document.querySelectorAll('.checkout-step-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`step-${step}`)?.classList.remove('hidden');
+
+      document.querySelectorAll('.step').forEach(el => {
+        const s = parseInt(el.dataset.step || '0');
+        el.classList.toggle('active', s === step);
+        el.classList.toggle('completed', s < step);
+      });
+      currentStep = step;
+    }
+
+    document.getElementById('address-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement;
+      const fd = new FormData(form);
+      fd.forEach((v, k) => addressData[k] = v as string);
+      goToStep(2);
+    });
+
+    document.querySelectorAll('.checkout-back-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        goToStep(parseInt(btn.dataset.back || '1'));
+      });
+    });
+
+    document.getElementById('place-order-btn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('place-order-btn') as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Processing…';
+
+      try {
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`),
+          },
+          body: JSON.stringify({ address: addressData }),
+        });
+
+        if (res.status === 401) {
+          window.location.href = '/auth/login';
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.error) {
+          alert(data.error);
+          btn.disabled = false;
+          btn.textContent = 'Place Order';
+          return;
+        }
+
+        if (data.payment === 'easebuzz') {
+          // Submit the signed payload to Easebuzz hosted checkout
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = data.paymentAction;
+          for (const [key, value] of Object.entries(data.paymentPayload)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = String(value);
+            form.appendChild(input);
+          }
+          const hashInput = document.createElement('input');
+          hashInput.type = 'hidden';
+          hashInput.name = 'hash';
+          hashInput.value = data.paymentHash;
+          form.appendChild(hashInput);
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        }
+
+        window.location.href = data.redirect || `/checkout/success?order=${data.orderId}`;
+      } catch {
+        alert('Something went wrong. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Place Order';
+      }
+    });
+  </script>
+</StorefrontLayout>
+
+<style>
+  .checkout-page {
+    padding: var(--space-8) var(--space-4);
+    max-width: 700px;
+    margin-inline: auto;
+  }
+  .checkout-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-6);
+  }
+  .checkout-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: var(--space-8);
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    opacity: 0.4;
+    transition: opacity var(--dur-base) var(--ease-out);
+  }
+  .step.active, .step.completed {
+    opacity: 1;
+  }
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--c-gray-200);
+    color: var(--c-gray-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .step.active .step-num {
+    background: var(--c-green-600);
+    color: var(--c-white);
+  }
+  .step.completed .step-num {
+    background: var(--c-green-100, #dcfce7);
+    color: var(--c-green-700);
+  }
+  .step-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+  .step-line {
+    width: 40px;
+    height: 2px;
+    background: var(--c-gray-200);
+    margin: 0 var(--space-2);
+  }
+  .step-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+  }
+  .checkout-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .form-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-gray-700);
+  }
+  .form-input {
+    padding: var(--space-3);
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color var(--dur-micro) var(--ease-out);
+  }
+  .form-input:focus {
+    border-color: var(--c-green-600);
+  }
+  .form-input[readonly] {
+    background: var(--c-gray-50);
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+  .checkout-next-btn, .checkout-back-btn {
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 1rem;
+    min-height: 48px;
+    cursor: pointer;
+    transition: background var(--dur-base) var(--ease-out);
+    border: none;
+  }
+  .checkout-next-btn {
+    background: var(--c-green-600);
+    color: var(--c-white);
+    width: 100%;
+    margin-top: var(--space-4);
+  }
+  .checkout-next-btn:hover {
+    background: var(--c-green-700);
+  }
+  .checkout-next-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  .checkout-back-btn {
+    background: var(--c-gray-100);
+    color: var(--c-gray-700);
+  }
+  .checkout-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+  }
+  .checkout-actions .checkout-next-btn {
+    flex: 1;
+    margin-top: 0;
+  }
+  .payment-options {
+    margin-bottom: var(--space-4);
+  }
+  .payment-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 2px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--dur-micro) var(--ease-out);
+  }
+  .payment-option.selected {
+    border-color: var(--c-green-600);
+  }
+  .payment-option label {
+    font-size: 0.9375rem;
+    cursor: pointer;
+  }
+  .order-confirmation {
+    text-align: center;
+    padding: var(--space-10) 0;
+  }
+  .confirmation-icon {
+    margin-bottom: var(--space-4);
+  }
+  .confirmation-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+  .confirmation-msg {
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-4);
+  }
+  .confirmation-order-id {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 600;
+    color: var(--c-green-700);
+    margin-bottom: var(--space-6);
+  }
+  .confirmation-actions {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: center;
+  }
+  .confirmation-btn {
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    background: var(--c-green-600);
+    color: var(--c-white);
+    transition: background var(--dur-base) var(--ease-out);
+  }
+  .confirmation-btn:hover {
+    background: var(--c-green-700);
+  }
+  .confirmation-btn-secondary {
+    background: var(--c-gray-100);
+    color: var(--c-gray-700);
+  }
+  .confirmation-btn-secondary:hover {
+    background: var(--c-gray-200);
+  }
+  .hidden {
+    display: none;
+  }
+</style>

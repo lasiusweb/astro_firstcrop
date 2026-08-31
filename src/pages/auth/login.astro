@@ -1,0 +1,277 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+---
+
+<StorefrontLayout title="Login — Firstcrop">
+  <div class="container auth-page">
+    <div class="auth-card">
+      <h1 class="auth-title">Login with Phone</h1>
+      <p class="auth-desc">Enter your phone number to receive a one-time password.</p>
+
+      <!-- Step 1: Enter phone -->
+      <form id="phone-form" class="auth-form">
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <div class="phone-input-wrap">
+            <span class="phone-prefix">+91</span>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              pattern="[6-9]\d{9}"
+              maxlength="10"
+              placeholder="9876543210"
+              required
+              class="form-input phone-input"
+              autocomplete="tel"
+            />
+          </div>
+        </div>
+        <button type="submit" class="auth-btn" id="send-otp-btn">Send OTP</button>
+        <p class="auth-error" id="phone-error" role="alert" aria-live="polite"></p>
+      </form>
+
+      <!-- Step 2: Enter OTP (hidden initially) -->
+      <form id="otp-form" class="auth-form hidden">
+        <p class="otp-sent-msg">OTP sent to <strong id="otp-phone-display"></strong></p>
+        <div class="form-group">
+          <label for="otp">One-Time Password</label>
+          <input
+            type="text"
+            id="otp"
+            name="otp"
+            maxlength="6"
+            pattern="\d{6}"
+            placeholder="123456"
+            required
+            class="form-input otp-input"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+          />
+        </div>
+        <button type="submit" class="auth-btn" id="verify-otp-btn">Verify & Login</button>
+        <button type="button" class="auth-link-btn" id="resend-btn">Resend OTP</button>
+        <p class="auth-error" id="otp-error" role="alert" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const phoneForm = document.getElementById('phone-form') as HTMLFormElement;
+    const otpForm = document.getElementById('otp-form') as HTMLFormElement;
+    const phoneError = document.getElementById('phone-error')!;
+    const otpError = document.getElementById('otp-error')!;
+    let phoneNumber = '';
+
+    phoneForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('phone') as HTMLInputElement;
+      phoneNumber = input.value.trim();
+      phoneError.textContent = '';
+
+      const btn = document.getElementById('send-otp-btn') as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneNumber }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          phoneError.textContent = data.error;
+          btn.disabled = false;
+          btn.textContent = 'Send OTP';
+          return;
+        }
+
+        // Show OTP form
+        phoneForm.classList.add('hidden');
+        otpForm.classList.remove('hidden');
+        document.getElementById('otp-phone-display')!.textContent = `+91 ${phoneNumber}`;
+        (document.getElementById('otp') as HTMLInputElement).focus();
+      } catch {
+        phoneError.textContent = 'Something went wrong. Try again.';
+        btn.disabled = false;
+        btn.textContent = 'Send OTP';
+      }
+    });
+
+    otpForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const otp = (document.getElementById('otp') as HTMLInputElement).value.trim();
+      otpError.textContent = '';
+
+      const btn = document.getElementById('verify-otp-btn') as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Verifying…';
+
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneNumber, token: otp }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          otpError.textContent = data.error;
+          btn.disabled = false;
+          btn.textContent = 'Verify & Login';
+          return;
+        }
+
+        window.location.href = data.redirect || '/account';
+      } catch {
+        otpError.textContent = 'Verification failed. Try again.';
+        btn.disabled = false;
+        btn.textContent = 'Verify & Login';
+      }
+    });
+
+    document.getElementById('resend-btn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('resend-btn') as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      try {
+        await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phoneNumber }),
+        });
+        btn.textContent = 'OTP Resent!';
+        setTimeout(() => { btn.textContent = 'Resend OTP'; btn.disabled = false; }, 30000);
+      } catch {
+        btn.textContent = 'Resend OTP';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</StorefrontLayout>
+
+<style>
+  .auth-page {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-12) var(--space-4);
+    min-height: 60vh;
+  }
+  .auth-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--c-white);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8);
+  }
+  .auth-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+  .auth-desc {
+    font-size: 0.9375rem;
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-6);
+  }
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .form-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--c-gray-700);
+  }
+  .form-input {
+    padding: var(--space-3);
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    outline: none;
+    transition: border-color var(--dur-micro) var(--ease-out);
+  }
+  .form-input:focus {
+    border-color: var(--c-green-600);
+  }
+  .phone-input-wrap {
+    display: flex;
+    gap: 0;
+  }
+  .phone-prefix {
+    padding: var(--space-3);
+    background: var(--c-gray-50);
+    border: 1px solid var(--c-gray-200);
+    border-right: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    font-size: 1rem;
+    color: var(--c-gray-600);
+    display: flex;
+    align-items: center;
+  }
+  .phone-input {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    flex: 1;
+  }
+  .otp-input {
+    font-size: 1.5rem;
+    text-align: center;
+    letter-spacing: 0.5em;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+  .auth-btn {
+    padding: var(--space-3) var(--space-6);
+    background: var(--c-green-600);
+    color: var(--c-white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 1rem;
+    min-height: 48px;
+    cursor: pointer;
+    transition: background var(--dur-base) var(--ease-out);
+  }
+  .auth-btn:hover {
+    background: var(--c-green-700);
+  }
+  .auth-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  .auth-link-btn {
+    background: none;
+    border: none;
+    color: var(--c-green-600);
+    font-size: 0.875rem;
+    cursor: pointer;
+    padding: var(--space-2);
+    font-weight: 500;
+  }
+  .auth-link-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .auth-error {
+    font-size: 0.875rem;
+    color: var(--c-error);
+    min-height: 1.25rem;
+  }
+  .otp-sent-msg {
+    font-size: 0.9375rem;
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-2);
+  }
+  .hidden {
+    display: none;
+  }
+</style>

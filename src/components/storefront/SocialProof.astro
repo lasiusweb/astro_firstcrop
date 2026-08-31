@@ -1,0 +1,96 @@
+---
+---
+
+<section class="social-proof">
+  <div class="container">
+    <h2 class="section-title heading-display">Trusted Across India</h2>
+    <div class="bento-grid">
+      <div class="bento-card bento-stat">
+        <span class="bento-num numeric">10,000+</span>
+        <span class="bento-label">Farmers Trust Us</span>
+      </div>
+      <div class="bento-card bento-stat">
+        <span class="bento-num numeric">40%</span>
+        <span class="bento-label">Average Yield Increase</span>
+      </div>
+      <div class="bento-card bento-testimonial">
+        <blockquote class="testimonial-quote">"RhizoBoost Pro transformed my soil in just 3 weeks. My tomato yield doubled this season."</blockquote>
+        <cite class="testimonial-author">— Ramesh K., Maharashtra</cite>
+      </div>
+      <div class="bento-card bento-stat">
+        <span class="bento-num numeric">50+</span>
+        <span class="bento-label">Districts Covered</span>
+      </div>
+      <div class="bento-card bento-testimonial">
+        <blockquote class="testimonial-quote">"Finally, biologicals that actually work. My neighbors are asking what I'm using!"</blockquote>
+        <cite class="testimonial-author">— Priya S., Karnataka</cite>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .social-proof {
+    padding: var(--space-16) 0;
+  }
+  .section-title {
+    text-align: center;
+    margin-bottom: var(--space-10);
+  }
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+  }
+  @media (min-width: 768px) {
+    .bento-grid {
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto auto;
+    }
+    .bento-stat:first-child {
+      grid-column: 1;
+    }
+    .bento-testimonial:first-of-type {
+      grid-column: 2 / 4;
+    }
+  }
+  .bento-card {
+    background: var(--c-gray-50);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    border: 1px solid var(--c-gray-100);
+  }
+  .bento-stat {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+  .bento-num {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--c-green-600);
+    line-height: 1;
+  }
+  .bento-label {
+    font-size: 0.875rem;
+    color: var(--c-gray-600);
+    font-weight: 500;
+  }
+  .testimonial-quote {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--c-gray-800);
+    font-style: italic;
+    margin-bottom: var(--space-3);
+  }
+  .testimonial-author {
+    font-size: 0.8125rem;
+    color: var(--c-gray-600);
+    font-style: normal;
+    font-weight: 500;
+  }
+</style>

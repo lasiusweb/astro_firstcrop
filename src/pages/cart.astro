@@ -1,0 +1,453 @@
+---
+import StorefrontLayout from '../layouts/StorefrontLayout.astro';
+import { getClaims } from '../lib/auth/get-claims';
+import { createServerClient } from '../lib/supabase/server';
+
+export const prerender = false;
+
+const claims = await getClaims(Astro);
+
+let items: Array<{
+  id: string;
+  quantity: number;
+  product: { id: string; name: string; slug: string; price: number; comparePrice?: number; image: string };
+}> = [];
+let dbError = false;
+
+if (claims) {
+  const supabase = createServerClient(Astro.cookies);
+  const { data, error } = await supabase
+    .from('cart_items')
+    .select(`
+      id,
+      quantity,
+      product:products (
+        id, name, slug, price, compare_price, images
+      )
+    `)
+    .eq('user_id', claims.userId);
+
+  if (!error && data) {
+    items = data.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      product: {
+        id: item.product.id,
+        name: item.product.name,
+        slug: item.product.slug,
+        price: item.product.price,
+        comparePrice: item.product.compare_price,
+        image: item.product.images?.[0] || '',
+      },
+    }));
+  } else {
+    dbError = true;
+  }
+}
+
+const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+const savings = items.reduce(
+  (sum, i) => sum + Math.max(0, (i.product.comparePrice ?? i.product.price) - i.product.price) * i.quantity,
+  0
+);
+const belowMinimum = items.length > 0 && subtotal < 299;
+---
+
+<StorefrontLayout title="Your Cart — Firstcrop">
+  <div class="container cart-page">
+    <h1 class="cart-title">Your Cart</h1>
+
+    {!claims ? (
+      <div class="cart-empty">
+        <p class="cart-empty-title">Log in to view your cart</p>
+        <p class="cart-empty-text">Your cart is saved to your account so you can pick up where you left off.</p>
+        <a href="/auth/login" class="cart-cta">Log In</a>
+        <a href="/products" class="cart-cta cart-cta-secondary">Browse Products</a>
+      </div>
+    ) : dbError ? (
+      <div class="cart-empty">
+        <p class="cart-empty-title">Something went wrong</p>
+        <p class="cart-empty-text">We couldn't load your cart. Please refresh the page.</p>
+      </div>
+    ) : items.length === 0 ? (
+      <div class="cart-empty">
+        <p class="cart-empty-title">Your cart is empty</p>
+        <p class="cart-empty-text">Explore our range of micro-microbial biologicals and grow smarter.</p>
+        <a href="/products" class="cart-cta">Browse Products</a>
+      </div>
+    ) : (
+      <div class="cart-layout">
+        <ul class="cart-table" aria-label="Cart items">
+          {items.map((item) => (
+            <li class="cart-row" data-item-id={item.id} data-unit-price={item.product.price}>
+              <a href={`/products/${item.product.slug}`} class="cart-thumb-link">
+                <img
+                  src={item.product.image}
+                  alt={item.product.name}
+                  width="88"
+                  height="88"
+                  loading="lazy"
+                  class="cart-thumb"
+                />
+              </a>
+              <div class="cart-item-details">
+                <a href={`/products/${item.product.slug}`} class="cart-item-name">{item.product.name}</a>
+                <p class="cart-item-unit numeric">₹{item.product.price.toFixed(0)} each</p>
+                <div class="cart-qty-controls">
+                  <button
+                    class="qty-btn"
+                    data-action="decrease"
+                    aria-label={`Decrease quantity of ${item.product.name}`}
+                  >−</button>
+                  <span class="qty-value numeric" data-role="qty">{item.quantity}</span>
+                  <button
+                    class="qty-btn"
+                    data-action="increase"
+                    aria-label={`Increase quantity of ${item.product.name}`}
+                  >+</button>
+                </div>
+              </div>
+              <div class="cart-line-end">
+                <p class="cart-line-total numeric" data-role="line-total">
+                  ₹{(item.product.price * item.quantity).toFixed(0)}
+                </p>
+                <button class="cart-remove" data-action="remove" aria-label={`Remove ${item.product.name}`}>
+                  Remove
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+
+        <aside class="cart-summary" aria-label="Order summary">
+          <h2 class="summary-title">Order Summary</h2>
+          <dl class="summary-list">
+            <div class="summary-row">
+              <dt>Subtotal</dt>
+              <dd class="numeric" data-role="subtotal">₹{subtotal.toFixed(0)}</dd>
+            </div>
+            {savings > 0 && (
+              <div class="summary-row summary-savings">
+                <dt>You save</dt>
+                <dd class="numeric">−₹{savings.toFixed(0)}</dd>
+              </div>
+            )}
+            <div class="summary-row">
+              <dt>Shipping</dt>
+              <dd>{subtotal >= 999 ? 'Free' : 'Calculated at checkout'}</dd>
+            </div>
+            <div class="summary-row summary-total">
+              <dt>Total</dt>
+              <dd class="numeric" data-role="total">₹{subtotal.toFixed(0)}</dd>
+            </div>
+          </dl>
+          <p class="summary-note">GST included where applicable. Final tax breakdown shown at checkout.</p>
+          {belowMinimum && (
+            <p class="summary-minimum" role="status">Minimum order value is ₹299 — add ₹{(299 - subtotal).toFixed(0)} more to check out.</p>
+          )}
+          <a
+            href="/checkout"
+            class={`cart-checkout-btn${belowMinimum ? ' cart-checkout-disabled' : ''}`}
+            aria-disabled={belowMinimum ? 'true' : undefined}
+          >
+            Proceed to Checkout
+          </a>
+        </aside>
+      </div>
+    )}
+  </div>
+
+  <script>
+    const MIN_ORDER = 299;
+
+    function formatINR(value: number) {
+      return `₹${value.toFixed(0)}`;
+    }
+
+    document.querySelectorAll('.cart-row').forEach((row) => {
+      const itemId = row.dataset.itemId;
+      const qtyEl = row.querySelector('[data-role="qty"]');
+      const lineTotalEl = row.querySelector('[data-role="line-total"]');
+      const unitPrice = Number(row.dataset.unitPrice ?? '0');
+      let busy = false;
+
+      async function push(quantity: number) {
+        if (!itemId || busy) return;
+        busy = true;
+        try {
+          const res = await fetch('/api/cart/update', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId, quantity }),
+          });
+          if (res.ok) {
+            window.dispatchEvent(new CustomEvent('firstcrop:cart-updated'));
+            const data = await res.json().catch(() => ({}));
+            if (quantity === 0 || data.deleted) {
+              window.location.reload();
+              return;
+            }
+            if (qtyEl && lineTotalEl) {
+              qtyEl.textContent = String(quantity);
+              lineTotalEl.textContent = formatINR(unitPrice * quantity);
+            }
+            recalcSummary();
+          } else {
+            window.dispatchEvent(new CustomEvent('firstcrop:toast', {
+              detail: { message: 'Could not update quantity.', variant: 'error' },
+            }));
+          }
+        } catch {
+          window.dispatchEvent(new CustomEvent('firstcrop:toast', {
+            detail: { message: 'Network error. Please try again.', variant: 'error' },
+          }));
+        } finally {
+          busy = false;
+        }
+      }
+
+      row.querySelectorAll('.qty-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const current = Number(qtyEl?.textContent || '1');
+          const action = (btn as HTMLElement).dataset.action;
+          const next = action === 'increase' ? current + 1 : current - 1;
+          void push(next);
+        });
+      });
+
+      row.querySelector('[data-action="remove"]')?.addEventListener('click', () => {
+        void push(0);
+      });
+    });
+
+    function recalcSummary() {
+      let subtotal = 0;
+      document.querySelectorAll('.cart-row').forEach((row) => {
+        const unitPrice = Number(row.dataset.unitPrice ?? '0');
+        const qty = Number(row.querySelector('[data-role="qty"]')?.textContent || '0');
+        subtotal += unitPrice * qty;
+      });
+      const subtotalEl = document.querySelector('[data-role="subtotal"]');
+      const totalEl = document.querySelector('[data-role="total"]');
+      if (subtotalEl) subtotalEl.textContent = formatINR(subtotal);
+      if (totalEl) totalEl.textContent = formatINR(subtotal);
+    }
+  </script>
+</StorefrontLayout>
+
+<style>
+  .cart-page {
+    padding: var(--space-8) var(--space-4);
+    max-width: 960px;
+  }
+  .cart-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-6);
+  }
+  .cart-empty {
+    text-align: center;
+    padding: var(--space-16) var(--space-4);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    background: var(--c-gray-50);
+  }
+  .cart-empty-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-2);
+  }
+  .cart-empty-text {
+    font-size: 0.9375rem;
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-6);
+  }
+  .cart-cta {
+    display: inline-block;
+    padding: var(--space-3) var(--space-6);
+    background: var(--c-green-600);
+    color: var(--c-white);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    min-height: 44px;
+    transition: background var(--dur-base) var(--ease-out);
+  }
+  .cart-cta:hover {
+    background: var(--c-green-700);
+  }
+  .cart-cta-secondary {
+    margin-left: var(--space-3);
+    background: transparent;
+    color: var(--c-green-700);
+    border: 1px solid var(--c-green-600);
+  }
+  .cart-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+  @media (min-width: 768px) {
+    .cart-layout {
+      grid-template-columns: 1fr 320px;
+    }
+  }
+  .cart-table {
+    display: flex;
+    flex-direction: column;
+  }
+  .cart-row {
+    display: grid;
+    grid-template-columns: 88px 1fr auto;
+    gap: var(--space-4);
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--c-gray-100);
+    align-items: start;
+  }
+  .cart-thumb {
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background: var(--c-gray-50);
+  }
+  .cart-item-name {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-1);
+  }
+  .cart-item-name:hover {
+    color: var(--c-green-700);
+  }
+  .cart-item-unit {
+    font-size: 0.875rem;
+    color: var(--c-gray-500);
+    margin-bottom: var(--space-3);
+  }
+  .cart-qty-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .qty-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 1.125rem;
+    color: var(--c-gray-700);
+    transition: background var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+  }
+  .qty-btn:hover {
+    background: var(--c-gray-50);
+    border-color: var(--c-gray-300);
+  }
+  .qty-value {
+    min-width: 32px;
+    text-align: center;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+  }
+  .cart-line-end {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+  .cart-line-total {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+  }
+  .cart-remove {
+    font-size: 0.8125rem;
+    color: var(--c-gray-400);
+    transition: color var(--dur-micro) var(--ease-out);
+    min-height: 24px;
+  }
+  .cart-remove:hover {
+    color: var(--c-error);
+  }
+  .cart-summary {
+    align-self: start;
+    position: sticky;
+    top: 88px;
+    padding: var(--space-5);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    background: var(--c-white);
+  }
+  .summary-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-4);
+  }
+  .summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9375rem;
+    color: var(--c-gray-600);
+  }
+  .summary-row dd {
+    color: var(--c-gray-900);
+    font-weight: 500;
+  }
+  .summary-savings dd {
+    color: var(--c-green-600);
+  }
+  .summary-total {
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--c-gray-100);
+    font-weight: 600;
+  }
+  .summary-total dt {
+    color: var(--c-gray-900);
+  }
+  .summary-total dd {
+    font-size: 1.0625rem;
+    font-weight: 700;
+  }
+  .summary-note {
+    font-size: 0.8125rem;
+    color: var(--c-gray-500);
+    margin-top: var(--space-3);
+    line-height: 1.55;
+  }
+  .summary-minimum {
+    font-size: 0.8125rem;
+    color: #b45309;
+    background: #fef3c7;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    margin-top: var(--space-3);
+  }
+  .cart-checkout-btn {
+    display: block;
+    text-align: center;
+    margin-top: var(--space-5);
+    padding: var(--space-3) var(--space-6);
+    background: var(--c-green-600);
+    color: var(--c-white);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    min-height: 48px;
+    transition: background var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out);
+  }
+  .cart-checkout-btn:hover {
+    background: var(--c-green-700);
+  }
+  .cart-checkout-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+</style>

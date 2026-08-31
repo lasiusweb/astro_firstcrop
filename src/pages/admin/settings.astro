@@ -1,0 +1,62 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { getClaims } from '../../lib/auth/get-claims';
+
+const claims = await getClaims(Astro);
+if (!claims || claims.role !== 'admin') {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<DashboardLayout title="Settings — Firstcrop Admin">
+  <div class="admin-settings">
+    <h1 class="page-title">Settings</h1>
+    <div class="settings-card">
+      <h2 class="settings-section-title">Store</h2>
+      <div class="settings-form">
+        <div class="form-group">
+          <label for="store-name">Store Name</label>
+          <input type="text" id="store-name" value="Firstcrop" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="store-email">Support Email</label>
+          <input type="email" id="store-email" value="support@firstcrop.in" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="store-phone">Support Phone</label>
+          <input type="tel" id="store-phone" value="+91 98765 43210" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="free-shipping">Free Shipping Threshold (₹)</label>
+          <input type="number" id="free-shipping" value="500" class="form-input" />
+        </div>
+      </div>
+    </div>
+    <div class="settings-card">
+      <h2 class="settings-section-title">GST</h2>
+      <div class="settings-form">
+        <div class="form-group">
+          <label for="gstin">GSTIN</label>
+          <input type="text" id="gstin" value="XXAAAA0000A1Z5" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="company-name">Company Name</label>
+          <input type="text" id="company-name" value="Clean Agritech Pvt. Ltd." class="form-input" />
+        </div>
+      </div>
+    </div>
+    <p class="settings-note">Settings management will be wired to Supabase in a future milestone.</p>
+  </div>
+</DashboardLayout>
+
+<style>
+  .page-title { font-size: 1.25rem; font-weight: 600; margin-bottom: var(--space-6); }
+  .settings-card { background: var(--c-white); border: 1px solid var(--c-gray-100); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-4); }
+  .settings-section-title { font-size: 0.875rem; font-weight: 600; color: var(--c-gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: var(--space-4); }
+  .settings-form { display: flex; flex-direction: column; gap: var(--space-4); max-width: 400px; }
+  .form-group { display: flex; flex-direction: column; gap: var(--space-1); }
+  .form-group label { font-size: 0.875rem; font-weight: 500; color: var(--c-gray-700); }
+  .form-input { padding: var(--space-3); border: 1px solid var(--c-gray-200); border-radius: var(--radius-md); font-size: 1rem; outline: none; transition: border-color var(--dur-micro) var(--ease-out); }
+  .form-input:focus { border-color: var(--c-green-600); }
+  .settings-note { font-size: 0.8125rem; color: var(--c-gray-500); margin-top: var(--space-4); }
+</style>

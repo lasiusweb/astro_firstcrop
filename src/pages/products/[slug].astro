@@ -1,0 +1,489 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import PriceDisplay from '../../components/storefront/PriceDisplay.astro';
+import BreadcrumbNav from '../../components/storefront/BreadcrumbNav.astro';
+import { getProductBySlug, toCardData } from '../../lib/products';
+import ProductCard from '../../components/storefront/ProductCard.astro';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const product = slug ? await getProductBySlug(Astro.cookies, slug) : null;
+
+if (!product) {
+  return new Response(null, { status: 404 });
+}
+
+const category = (product as any).categories;
+const categoryName = category?.name ?? 'Products';
+const categorySlug = category?.slug ?? 'all';
+
+const image = Array.isArray(product.images) && product.images.length > 0 ? String(product.images[0]) : 'https://images.unsplash.com/photo-1592982537447-6f2a6a0c7c17?w=800';
+
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Products', href: '/products' },
+  { label: categoryName, href: `/categories/${categorySlug}` },
+  { label: product.name },
+];
+
+// JSON-LD structured data
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: product.name,
+  description: product.description,
+  image,
+  offers: {
+    '@type': 'Offer',
+    price: Number(product.price),
+    priceCurrency: 'INR',
+    availability: product.stock_qty > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+  },
+  brand: { '@type': 'Brand', name: 'Firstcrop' },
+};
+---
+
+<StorefrontLayout title={`${product.name} — Firstcrop`} description={product.short_desc ?? ''}>
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+  <div class="container pdp">
+    <BreadcrumbNav items={breadcrumbs} />
+
+    <div class="pdp-layout">
+      <!-- Product Gallery -->
+      <div class="pdp-gallery">
+        <div class="pdp-image-main">
+          <img src={image} alt={product.name} width="600" height="600" fetchpriority="high" />
+        </div>
+      </div>
+
+      <!-- Product Info -->
+      <div class="pdp-info">
+        <span class="pdp-category">{categoryName}</span>
+        <h1 class="pdp-title">{product.name}</h1>
+        <p class="pdp-short-desc">{product.short_desc}</p>
+
+        <!-- Server island for live price/stock -->
+        <PriceDisplay server:defer productId={product.id} price={Number(product.price)} comparePrice={product.compare_price != null ? Number(product.compare_price) : undefined}>
+          <div slot="fallback" class="price-skeleton">
+            <div class="skeleton-line" style="width: 120px; height: 28px;"></div>
+          </div>
+        </PriceDisplay>
+
+        <div class="pdp-benefits">
+          <h3 class="pdp-section-title">Key Benefits</h3>
+          <ul class="benefits-list">
+            {(product.benefits ?? []).map((b: string) => (
+              <li class="benefit-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-green-600)" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                {b}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div class="pdp-application">
+          <h3 class="pdp-section-title">Application Rate</h3>
+          <p class="application-text">{product.application_rate}</p>
+        </div>
+
+        <!-- Client island for add-to-cart -->
+        <div class="pdp-actions">
+          <button class="add-to-cart-btn" data-product-id={product.id}>
+            Add to Cart
+          </button>
+          <button class="wishlist-btn" aria-label={`Add ${product.name} to wishlist`} data-wishlist-id={product.id}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reviews -->
+    <section class="pdp-reviews" aria-labelledby="reviews-heading">
+      <h2 class="pdp-section-title" id="reviews-heading">Reviews</h2>
+      <div id="reviews-list" class="reviews-list" aria-live="polite">
+        <p class="reviews-loading">Loading reviews…</p>
+      </div>
+      <form id="review-form" class="review-form">
+        <h3 class="review-form-title">Write a review</h3>
+        <div class="review-stars" role="radiogroup" aria-label="Rating">
+          {[5, 4, 3, 2, 1].map((v) => (
+            <>
+              <input type="radio" id={`star-${v}`} name="rating" value={v} required />
+              <label for={`star-${v}`} aria-label={`${v} star${v > 1 ? 's' : ''}`}>★</label>
+            </>
+          ))}
+        </div>
+        <input type="text" id="review-title" name="title" placeholder="Title (optional)" maxlength="120" class="review-input" />
+        <textarea id="review-body" name="body" placeholder="How did it work on your field?" rows="3" maxlength="2000" class="review-textarea"></textarea>
+        <button type="submit" class="review-submit">Submit Review</button>
+        <p class="review-note">One review per product — submitting again updates yours.</p>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    document.querySelector('.add-to-cart-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      const productId = btn.dataset.productId;
+      btn.disabled = true;
+      btn.textContent = 'Adding…';
+      const notify = (message: string, variant: 'success' | 'error') => {
+        window.dispatchEvent(new CustomEvent('firstcrop:toast', { detail: { message, variant } }));
+      };
+      try {
+        const res = await fetch('/api/cart/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId, quantity: 1 }),
+        });
+        if (res.status === 401) {
+          notify('Please log in to add items to your cart.', 'error');
+          setTimeout(() => { window.location.href = '/auth/login'; }, 1200);
+          return;
+        }
+        if (!res.ok) {
+          notify('Could not add to cart. Please try again.', 'error');
+          return;
+        }
+        window.dispatchEvent(new CustomEvent('firstcrop:cart-updated'));
+        notify('Added to cart.', 'success');
+        btn.textContent = 'Added!';
+        setTimeout(() => { btn.textContent = 'Add to Cart'; btn.disabled = false; }, 2000);
+      } catch {
+        notify('Network error. Please try again.', 'error');
+        btn.textContent = 'Add to Cart';
+        btn.disabled = false;
+      }
+    });
+    // Wishlist toggle
+    document.querySelector<HTMLButtonElement>('.wishlist-btn')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      const productId = btn.dataset.wishlistId;
+      if (!productId) return;
+      btn.disabled = true;
+      const notify = (message: string, variant: 'success' | 'error') => {
+        window.dispatchEvent(new CustomEvent('firstcrop:toast', { detail: { message, variant } }));
+      };
+      try {
+        const res = await fetch('/api/wishlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId }),
+        });
+        if (res.status === 401) {
+          notify('Please log in to save to your wishlist.', 'error');
+          setTimeout(() => { window.location.href = '/auth/login'; }, 1200);
+          return;
+        }
+        if (res.ok) {
+          notify('Saved to your wishlist.', 'success');
+          btn.setAttribute('aria-pressed', 'true');
+        } else {
+          notify('Could not save to wishlist.', 'error');
+        }
+      } catch {
+        notify('Network error. Please try again.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Reviews: load
+    const slug = window.location.pathname.split('/').pop();
+    async function loadReviews() {
+      const list = document.getElementById('reviews-list');
+      if (!list || !slug) return;
+      try {
+        const res = await fetch(`/api/products/${slug}/reviews`);
+        const { reviews } = await res.json();
+        if (!reviews?.length) {
+          list.innerHTML = '<p class="review-empty">No reviews yet — be the first to share your results.</p>';
+          return;
+        }
+        list.innerHTML = reviews.map((r: any) => `
+          <div class="review-item">
+            <div class="review-stars-display" aria-label="${r.rating} out of 5 stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+            ${r.title ? `<p class="review-item-title">${r.title.replace(/</g, '&lt;')}</p>` : ''}
+            ${r.body ? `<p class="review-item-body">${r.body.replace(/</g, '&lt;')}</p>` : ''}
+            <time class="review-date">${new Date(r.created_at).toLocaleDateString('en-IN')}</time>
+          </div>
+        `).join('');
+      } catch {
+        list.innerHTML = '<p class="review-empty">Reviews unavailable right now.</p>';
+      }
+    }
+    loadReviews();
+
+    // Reviews: submit
+    document.getElementById('review-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement;
+      const submit = form.querySelector<HTMLButtonElement>('.review-submit')!;
+      const rating = (form.querySelector('input[name="rating"]:checked') as HTMLInputElement)?.value;
+      const title = (form.querySelector('#review-title') as HTMLInputElement).value;
+      const body = (form.querySelector('#review-body') as HTMLTextAreaElement).value;
+      const notify = (message: string, variant: 'success' | 'error') => {
+        window.dispatchEvent(new CustomEvent('firstcrop:toast', { detail: { message, variant } }));
+      };
+      submit.disabled = true;
+      try {
+        const res = await fetch(`/api/products/${slug}/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rating, title, body }),
+        });
+        if (res.status === 401) {
+          notify('Please log in to write a review.', 'error');
+          setTimeout(() => { window.location.href = '/auth/login'; }, 1200);
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok) {
+          notify(data.error || 'Could not submit review.', 'error');
+          return;
+        }
+        notify('Thanks for your review!', 'success');
+        form.reset();
+        loadReviews();
+      } catch {
+        notify('Network error. Please try again.', 'error');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  </script>
+</StorefrontLayout>
+
+<style>
+  .pdp {
+    padding: var(--space-6) var(--space-4);
+  }
+  .pdp-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+  @media (min-width: 768px) {
+    .pdp-layout {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .pdp-image-main {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--c-gray-50);
+  }
+  .pdp-image-main img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+  .pdp-category {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--c-green-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-2);
+  }
+  .pdp-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-2);
+  }
+  .pdp-short-desc {
+    font-size: 1rem;
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-4);
+  }
+  .pdp-section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--c-gray-900);
+    margin-bottom: var(--space-2);
+  }
+  .pdp-benefits {
+    margin-top: var(--space-6);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--c-gray-100);
+  }
+  .benefits-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .benefit-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.9375rem;
+    color: var(--c-gray-700);
+  }
+  .pdp-application {
+    margin-top: var(--space-4);
+  }
+  .application-text {
+    font-size: 0.9375rem;
+    color: var(--c-gray-600);
+    background: var(--c-green-50);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+  }
+  .pdp-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+  }
+  .pdp-reviews {
+    margin-top: var(--space-10);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--c-gray-100);
+  }
+  .reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+  .review-empty, .reviews-loading {
+    color: var(--c-gray-500);
+    font-size: 0.9375rem;
+  }
+  .review-item {
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+  }
+  .review-stars-display {
+    color: var(--c-gold-500, #EAB308);
+    letter-spacing: 2px;
+  }
+  .review-item-title {
+    font-weight: 600;
+    margin-top: var(--space-1);
+  }
+  .review-item-body {
+    color: var(--c-gray-600);
+    font-size: 0.9375rem;
+    margin-top: var(--space-1);
+  }
+  .review-date {
+    font-size: 0.75rem;
+    color: var(--c-gray-400);
+  }
+  .review-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: 480px;
+  }
+  .review-form-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .review-stars {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: var(--space-1);
+  }
+  .review-stars input { position: absolute; opacity: 0; }
+  .review-stars label {
+    font-size: 1.5rem;
+    color: var(--c-gray-300);
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .review-stars input:checked ~ label,
+  .review-stars label:hover,
+  .review-stars label:hover ~ label {
+    color: var(--c-gold-500, #EAB308);
+  }
+  .review-stars input:focus-visible + label {
+    outline: 2px solid var(--c-green-600);
+    border-radius: var(--radius-sm);
+  }
+  .review-input, .review-textarea {
+    padding: var(--space-3);
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    font-family: inherit;
+  }
+  .review-submit {
+    align-self: flex-start;
+    padding: var(--space-3) var(--space-6);
+    min-height: 44px;
+    background: var(--c-green-600);
+    color: var(--c-white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--dur-micro) var(--ease-out);
+  }
+  .review-submit:hover { background: var(--c-green-700); }
+  .review-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+  .review-note {
+    font-size: 0.8125rem;
+    color: var(--c-gray-400);
+  }
+  .add-to-cart-btn {
+    flex: 1;
+    padding: var(--space-3) var(--space-6);
+    background: var(--c-green-600);
+    color: var(--c-white);
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 1rem;
+    min-height: 48px;
+    transition: background var(--dur-base) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+  }
+  .add-to-cart-btn:hover {
+    background: var(--c-green-700);
+  }
+  .add-to-cart-btn:active {
+    transform: scale(0.97);
+  }
+  .add-to-cart-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  .wishlist-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    color: var(--c-gray-400);
+    transition: color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out);
+  }
+  .wishlist-btn:hover {
+    color: var(--c-error);
+    border-color: var(--c-error);
+  }
+  .price-skeleton {
+    padding: var(--space-4) 0;
+  }
+  .skeleton-line {
+    background: var(--c-gray-100);
+    border-radius: var(--radius-sm);
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+</style>

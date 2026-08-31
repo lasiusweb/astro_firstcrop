@@ -1,0 +1,157 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getClaims } from '../../lib/auth/get-claims';
+
+const claims = await getClaims(Astro);
+if (!claims) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<StorefrontLayout title="My Orders — Firstcrop">
+  <div class="container orders-page">
+    <header class="orders-header">
+      <h1 class="orders-title">My Orders</h1>
+      <a href="/account" class="orders-back">← Back to Account</a>
+    </header>
+    <div id="orders-list" class="orders-list">
+      <p class="orders-loading">Loading orders…</p>
+    </div>
+  </div>
+
+  <script>
+    async function loadOrders() {
+      const container = document.getElementById('orders-list')!;
+      try {
+        const res = await fetch('/api/account/orders');
+        const { orders } = await res.json();
+
+        if (!orders || orders.length === 0) {
+          container.innerHTML = '<div class="orders-empty"><p>No orders yet.</p><a href="/products">Start Shopping →</a></div>';
+          return;
+        }
+
+        container.innerHTML = orders.map((order: any) => `
+          <div class="order-card">
+            <div class="order-card-header">
+              <span class="order-id">Order #${order.id.slice(0, 8).toUpperCase()}</span>
+              <span class="order-status order-status-${order.status}">${order.status}</span>
+            </div>
+            <div class="order-card-meta">
+              <span>${new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              <span class="numeric">₹${order.total.toFixed(0)}</span>
+            </div>
+            <div class="order-card-items">
+              ${(order.items || []).map((item: any) => `
+                <span class="order-item-name">${item.product_name} × ${item.quantity}</span>
+              `).join('')}
+            </div>
+            <div class="order-card-actions">
+              <a href="/api/invoice/${order.id}" class="order-action-btn" target="_blank">Download Invoice</a>
+            </div>
+          </div>
+        `).join('');
+      } catch {
+        container.innerHTML = '<p class="orders-error">Failed to load orders.</p>';
+      }
+    }
+    loadOrders();
+  </script>
+</StorefrontLayout>
+
+<style>
+  .orders-page {
+    padding: var(--space-8) var(--space-4);
+    max-width: 700px;
+    margin-inline: auto;
+  }
+  .orders-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+  }
+  .orders-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .orders-back {
+    font-size: 0.875rem;
+    color: var(--c-green-600);
+    font-weight: 500;
+  }
+  .order-card {
+    background: var(--c-white);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-bottom: var(--space-3);
+  }
+  .order-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2);
+  }
+  .order-id {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .order-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+  }
+  .order-status-paid {
+    background: var(--c-green-50, #dcfce7);
+    color: var(--c-green-700);
+  }
+  .order-status-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .order-status-shipped {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  .order-card-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-2);
+  }
+  .order-card-items {
+    font-size: 0.8125rem;
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-3);
+  }
+  .order-item-name {
+    display: block;
+    padding: 2px 0;
+  }
+  .order-action-btn {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--c-green-600);
+    text-decoration: underline;
+  }
+  .orders-empty, .orders-error {
+    text-align: center;
+    padding: var(--space-12) 0;
+    color: var(--c-gray-600);
+  }
+  .orders-empty a {
+    display: inline-block;
+    margin-top: var(--space-3);
+    color: var(--c-green-600);
+    font-weight: 600;
+  }
+  .orders-loading {
+    text-align: center;
+    padding: var(--space-8) 0;
+    color: var(--c-gray-400);
+  }
+</style>

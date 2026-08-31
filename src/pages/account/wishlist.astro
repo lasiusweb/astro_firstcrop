@@ -1,0 +1,179 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { createServerClient } from '../../lib/supabase/server';
+
+export const prerender = false;
+
+const claims = Astro.locals.claims;
+
+if (!claims) {
+  return Astro.redirect('/auth/login');
+}
+
+const supabase = createServerClient(Astro.cookies, { request: Astro.request });
+const { data: items } = await supabase
+  .from('wishlist')
+  .select('product_id, products (id, name, slug, price, compare_price, images, short_desc)')
+  .eq('user_id', claims.userId)
+  .order('created_at', { ascending: false });
+
+const products = (items ?? [])
+  .map((i: any) => i.products)
+  .filter(Boolean)
+  .map((p: any) => ({
+    ...p,
+    price: Number(p.price),
+    comparePrice: p.compare_price != null ? Number(p.compare_price) : undefined,
+    image: Array.isArray(p.images) && p.images.length ? String(p.images[0]) : '',
+  }));
+---
+
+<StorefrontLayout title="Wishlist — Firstcrop">
+  <div class="container wishlist-page">
+    <header class="wishlist-header">
+      <h1 class="wishlist-title">My Wishlist</h1>
+      <a href="/account" class="wishlist-back">← Back to Account</a>
+    </header>
+
+    {products.length > 0 ? (
+      <div class="wishlist-grid">
+        {products.map((p) => (
+          <div class="wishlist-item" data-product-id={p.id}>
+            <a href={`/products/${p.slug}`} class="wishlist-item-link">
+              {p.image && <img src={p.image} alt={p.name} width="80" height="80" loading="lazy" />}
+              <div class="wishlist-item-info">
+                <span class="wishlist-item-name">{p.name}</span>
+                <span class="wishlist-item-price numeric">₹{p.price.toFixed(0)}</span>
+              </div>
+            </a>
+            <button class="wishlist-remove" data-product-id={p.id} aria-label={`Remove ${p.name} from wishlist`}>
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div class="wishlist-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--c-gray-300)" stroke-width="1.5" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <p>Your wishlist is empty</p>
+        <a href="/products" class="wishlist-browse">Browse Products →</a>
+      </div>
+    )}
+  </div>
+</StorefrontLayout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('.wishlist-remove').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const productId = btn.dataset.productId;
+      if (!productId) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/wishlist', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId }),
+        });
+        if (res.ok) {
+          btn.closest('.wishlist-item')?.remove();
+          if (!document.querySelector('.wishlist-item')) {
+            window.location.reload();
+          }
+        } else {
+          btn.disabled = false;
+        }
+      } catch {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+
+<style>
+  .wishlist-page {
+    padding: var(--space-8) var(--space-4);
+    max-width: 700px;
+    margin-inline: auto;
+  }
+  .wishlist-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+  }
+  .wishlist-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .wishlist-back {
+    font-size: 0.875rem;
+    color: var(--c-green-600);
+    font-weight: 500;
+  }
+  .wishlist-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .wishlist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+  .wishlist-item-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+  .wishlist-item-link img {
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+  }
+  .wishlist-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .wishlist-item-name {
+    font-weight: 600;
+    color: var(--c-gray-900);
+  }
+  .wishlist-item-price {
+    font-size: 0.9375rem;
+    color: var(--c-green-700);
+  }
+  .wishlist-remove {
+    padding: var(--space-2) var(--space-4);
+    min-height: 44px;
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    background: var(--c-white);
+    color: var(--c-gray-700);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background var(--dur-micro) var(--ease-out);
+  }
+  .wishlist-remove:hover {
+    background: var(--c-gray-50);
+  }
+  .wishlist-empty {
+    text-align: center;
+    padding: var(--space-16) 0;
+    color: var(--c-gray-500);
+  }
+  .wishlist-empty p {
+    margin: var(--space-3) 0;
+    font-size: 1rem;
+  }
+  .wishlist-browse {
+    display: inline-block;
+    color: var(--c-green-600);
+    font-weight: 600;
+  }
+</style>

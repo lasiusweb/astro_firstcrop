@@ -1,0 +1,67 @@
+---
+import StorefrontLayout from '../layouts/StorefrontLayout.astro';
+
+export const prerender = true;
+---
+
+<StorefrontLayout title="Page Not Found — Firstcrop">
+  <div class="container notfound">
+    <p class="notfound-code">404</p>
+    <h1 class="notfound-title">This field lies fallow</h1>
+    <p class="notfound-desc">The page you're looking for doesn't exist or has been moved.</p>
+    <div class="notfound-actions">
+      <a href="/" class="notfound-btn">Go Home</a>
+      <a href="/products" class="notfound-btn secondary">Browse Products</a>
+    </div>
+  </div>
+</StorefrontLayout>
+
+<style>
+  .notfound {
+    text-align: center;
+    padding: var(--space-16) var(--space-4);
+  }
+  .notfound-code {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--c-green-600);
+    margin: 0;
+  }
+  .notfound-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: var(--space-2) 0;
+  }
+  .notfound-desc {
+    color: var(--c-gray-600);
+    margin-bottom: var(--space-6);
+  }
+  .notfound-actions {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .notfound-btn {
+    padding: var(--space-3) var(--space-6);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    background: var(--c-green-600);
+    color: var(--c-white);
+    transition: background var(--dur-base) var(--ease-out);
+  }
+  .notfound-btn:hover {
+    background: var(--c-green-700);
+  }
+  .notfound-btn.secondary {
+    background: var(--c-gray-100);
+    color: var(--c-gray-700);
+  }
+  .notfound-btn.secondary:hover {
+    background: var(--c-gray-200);
+  }
+</style>

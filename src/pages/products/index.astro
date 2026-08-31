@@ -1,0 +1,271 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import ProductCard from '../../components/storefront/ProductCard.astro';
+import { listProducts, toCardData, listCategories, type ProductFilters } from '../../lib/products';
+
+export const prerender = false;
+
+const url = Astro.url;
+const searchParams = url.searchParams;
+
+const selectedCategories = searchParams.getAll('category').filter(Boolean);
+const price = searchParams.get('price') || '';
+const sort = (searchParams.get('sort') || 'newest') as NonNullable<ProductFilters['sort']>;
+const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+
+const filters: ProductFilters = { categories: selectedCategories, page, perPage: 12, sort };
+if (price === '0-300') filters.priceMax = 300;
+if (price === '300-500') { filters.priceMin = 300; filters.priceMax = 500; }
+if (price === '500+') filters.priceMin = 500;
+
+let result: Awaited<ReturnType<typeof listProducts>> | null = null;
+let dbError = false;
+try {
+  result = await listProducts(Astro.cookies, filters);
+} catch (err) {
+  console.error('[PLP] fetch failed:', (err as Error).message);
+  dbError = true;
+}
+
+const cards = (result?.products ?? []).map(toCardData);
+const totalPages = result?.totalPages ?? 1;
+const categories = await listCategories(Astro.cookies).catch(() => []);
+
+function pageUrl(p: number): string {
+  const params = new URLSearchParams(url.search);
+  params.set('page', String(p));
+  return `/products?${params.toString()}`;
+}
+const sortOptions = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'price_asc', label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+  { value: 'name', label: 'Name A–Z' },
+];
+const hasFilters = selectedCategories.length > 0 || price !== '';
+---
+
+<StorefrontLayout title="Shop All Products — Firstcrop">
+  <div class="container plp">
+    <header class="plp-header">
+      <h1 class="plp-title">All Products</h1>
+      <p class="plp-count">{dbError ? 'Catalog temporarily unavailable' : `${result?.total ?? 0} products`}</p>
+    </header>
+
+    <div class="plp-layout">
+      <!-- Filters (server-rendered, URL-param driven) -->
+      <aside class="plp-filters hide-mobile" id="filters">
+        <h2 class="filters-title">Filters</h2>
+        <form method="get" action="/products" id="filter-form">
+          <div class="filter-group">
+            <h3 class="filter-group-title">Category</h3>
+            {categories.map(cat => (
+              <label class="filter-option">
+                <input type="checkbox" name="category" value={cat.slug} checked={selectedCategories.includes(cat.slug)} />
+                {cat.name}
+              </label>
+            ))}
+          </div>
+          <div class="filter-group">
+            <h3 class="filter-group-title">Price Range</h3>
+            {[
+              { value: '0-300', label: 'Under ₹300' },
+              { value: '300-500', label: '₹300 – ₹500' },
+              { value: '500+', label: 'Above ₹500' },
+            ].map(opt => (
+              <label class="filter-option">
+                <input type="radio" name="price" value={opt.value} checked={price === opt.value} />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          <div class="filter-group">
+            <label class="filter-option" for="sort">Sort by</label>
+            <select id="sort" name="sort" class="sort-select">
+              {sortOptions.map(o => <option value={o.value} selected={sort === o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <button type="submit" class="filter-apply-btn">Apply Filters</button>
+          {hasFilters && <a href="/products" class="filter-clear-link">Clear all</a>}
+        </form>
+      </aside>
+
+      <!-- Product Grid -->
+      <div class="plp-grid">
+        {cards.length > 0 ? (
+          cards.map(product => <ProductCard {...product} />)
+        ) : (
+          <div class="plp-empty">
+            <p>{dbError ? 'Something went wrong loading products. Please try again shortly.' : 'No products match your filters.'}</p>
+            {hasFilters && !dbError && <a href="/products" class="plp-empty-link">Clear filters</a>}
+          </div>
+        )}
+      </div>
+    </div>
+
+    {totalPages > 1 && (
+      <nav class="pagination" aria-label="Pagination">
+        {page > 1 && <a href={pageUrl(page - 1)} class="page-link" rel="prev">← Prev</a>}
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          <a href={pageUrl(p)} class={`page-link${p === page ? ' current' : ''}`} aria-current={p === page ? 'page' : undefined}>{p}</a>
+        ))}
+        {page < totalPages && <a href={pageUrl(page + 1)} class="page-link" rel="next">Next →</a>}
+      </nav>
+    )}
+  </div>
+</StorefrontLayout>
+
+<style>
+  .filter-group {
+    margin-bottom: var(--space-5);
+  }
+  .filter-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    font-size: 0.9375rem;
+    color: var(--c-gray-700);
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .sort-select {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    background: var(--c-white);
+  }
+  .filter-apply-btn {
+    width: 100%;
+    padding: var(--space-3);
+    min-height: 44px;
+    background: var(--c-green-600);
+    color: var(--c-white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--dur-micro) var(--ease-out);
+  }
+  .filter-apply-btn:hover {
+    background: var(--c-green-700);
+  }
+  .filter-clear-link {
+    display: inline-block;
+    margin-top: var(--space-3);
+    color: var(--c-gray-600);
+    font-size: 0.875rem;
+    text-decoration: underline;
+  }
+  .plp-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--space-16) 0;
+    color: var(--c-gray-600);
+  }
+  .plp-empty-link {
+    display: inline-block;
+    margin-top: var(--space-3);
+    color: var(--c-green-600);
+    font-weight: 600;
+  }
+  .pagination {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-8);
+  }
+  .page-link {
+    padding: var(--space-2) var(--space-3);
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--c-gray-200);
+    border-radius: var(--radius-md);
+    color: var(--c-gray-700);
+    transition: border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+  }
+  .page-link.current {
+    background: var(--c-green-600);
+    border-color: var(--c-green-600);
+    color: var(--c-white);
+  }
+</style>
+
+<style>
+  .plp {
+    padding: var(--space-8) var(--space-4);
+  }
+  .plp-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+  }
+  .plp-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+  }
+  .plp-count {
+    font-size: 0.875rem;
+    color: var(--c-gray-600);
+  }
+  .plp-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+  @media (min-width: 768px) {
+    .plp-layout {
+      grid-template-columns: 220px 1fr;
+    }
+  }
+  .plp-filters {
+    padding: var(--space-4);
+    background: var(--c-white);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    height: fit-content;
+    position: sticky;
+    top: 80px;
+  }
+  .filters-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+  }
+  .filter-group {
+    margin-bottom: var(--space-4);
+  }
+  .filter-group-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--c-gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-2);
+  }
+  .filter-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.875rem;
+    color: var(--c-gray-700);
+    padding: var(--space-1) 0;
+    cursor: pointer;
+  }
+  .plp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--grid-gap);
+  }
+  @media (min-width: 768px) {
+    .plp-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+</style>

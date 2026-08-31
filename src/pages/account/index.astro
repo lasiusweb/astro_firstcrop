@@ -1,0 +1,79 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { getClaims } from '../../lib/auth/get-claims';
+
+const claims = await getClaims(Astro);
+if (!claims) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<StorefrontLayout title="My Account — Firstcrop">
+  <div class="container account-page">
+    <h1 class="account-title">My Account</h1>
+    <div class="account-grid">
+      <a href="/account/orders" class="account-card">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span class="account-card-label">My Orders</span>
+      </a>
+      <a href="/account/wishlist" class="account-card">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span class="account-card-label">Wishlist</span>
+      </a>
+      <button id="logout-btn" class="account-card account-card-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        <span class="account-card-label">Logout</span>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('logout-btn')?.addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+  </script>
+</StorefrontLayout>
+
+<style>
+  .account-page {
+    padding: var(--space-8) var(--space-4);
+  }
+  .account-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--space-6);
+  }
+  .account-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+  }
+  .account-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    background: var(--c-white);
+    border: 1px solid var(--c-gray-100);
+    border-radius: var(--radius-lg);
+    text-decoration: none;
+    color: var(--c-gray-700);
+    transition: border-color var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
+    cursor: pointer;
+  }
+  .account-card:hover {
+    border-color: var(--c-green-200, var(--c-green-100));
+    box-shadow: var(--shadow-md);
+  }
+  .account-card-label {
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+  .account-card-btn {
+    background: var(--c-white);
+    border: 1px solid var(--c-gray-100);
+    font-family: inherit;
+  }
+</style>

@@ -1,0 +1,86 @@
+---
+import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import ProductCard from '../../components/storefront/ProductCard.astro';
+import BreadcrumbNav from '../../components/storefront/BreadcrumbNav.astro';
+import { getCategoryBySlug, listProducts, toCardData } from '../../lib/products';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const category = slug ? await getCategoryBySlug(Astro.cookies, slug) : null;
+
+if (!category) {
+  return new Response(null, { status: 404 });
+}
+
+const { products } = await listProducts(Astro.cookies, { categories: [category.slug], perPage: 24 }).catch(() => ({ products: [] as never[] }));
+const cards = products.map(toCardData);
+
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Products', href: '/products' },
+  { label: category.name },
+];
+---
+
+<StorefrontLayout title={`${category.name} — Firstcrop`} description={category.description ?? ''}>
+  <div class="container category-page">
+    <BreadcrumbNav items={breadcrumbs} />
+    <header class="category-header">
+      <h1 class="category-title">{category.name}</h1>
+      <p class="category-desc">{category.description}</p>
+    </header>
+
+    {cards.length > 0 ? (
+      <div class="category-grid">
+        {cards.map(product => (
+          <ProductCard {...product} />
+        ))}
+      </div>
+    ) : (
+      <div class="category-empty">
+        <p>Products coming soon. Check back later!</p>
+        <a href="/products" class="category-empty-link">Browse All Products →</a>
+      </div>
+    )}
+  </div>
+</StorefrontLayout>
+
+<style>
+  .category-page {
+    padding: var(--space-6) var(--space-4);
+  }
+  .category-header {
+    margin-bottom: var(--space-8);
+  }
+  .category-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+  }
+  .category-desc {
+    font-size: 1rem;
+    color: var(--c-gray-600);
+  }
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--grid-gap);
+  }
+  @media (min-width: 768px) {
+    .category-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .category-empty {
+    text-align: center;
+    padding: var(--space-16) 0;
+    color: var(--c-gray-600);
+  }
+  .category-empty-link {
+    display: inline-block;
+    margin-top: var(--space-4);
+    color: var(--c-green-600);
+    font-weight: 600;
+  }
+</style>
