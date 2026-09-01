@@ -18,3 +18,24 @@
   for = "/checkout/*"
   [headers.values]
     Cache-Control = "private, no-store"
+
+# --- Security headers (all routes) ---
+#
+# CSP is intentionally Report-Only for an initial observation window; flip to
+# `Content-Security-Policy` once no violations are reported. Allowed domains:
+#   fonts.googleapis.com / fonts.gstatic.com  — Google Fonts (Inter, Space Grotesk)
+#   images.unsplash.com                        — product imagery fallbacks
+#   *.supabase.co (https + wss)                — Supabase REST/auth/realtime
+#   *.ingest.sentry.io                         — Sentry error reporting
+#   *.easebuzz.in                              — payment gateway API
+# Astro bundles <script> tags into external module files, so script-src stays 'self'.
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://images.unsplash.com https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.easebuzz.in; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
