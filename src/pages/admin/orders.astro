@@ -1,11 +1,8 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { getClaims } from '../../lib/auth/get-claims';
+import { redirectIfNotAdmin } from '../../lib/auth/guard';
 
-const claims = await getClaims(Astro);
-if (!claims || claims.role !== 'admin') {
-  return Astro.redirect('/auth/login');
-}
+return redirectIfNotAdmin(Astro);
 ---
 
 <DashboardLayout title="Orders — Firstcrop Admin">

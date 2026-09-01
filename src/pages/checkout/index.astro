@@ -1,9 +1,8 @@
 ---
 import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
+import { redirectIfGuest } from '../../lib/auth/guard';
 // Server-side auth guard — checkout is a protected route
-if (!Astro.locals.claims) {
-  return Astro.redirect('/auth/login');
-}
+return redirectIfGuest(Astro);
 ---
 
 <StorefrontLayout title="Checkout — Firstcrop">

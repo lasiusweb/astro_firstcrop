@@ -1,14 +1,13 @@
 ---
 import StorefrontLayout from '../../layouts/StorefrontLayout.astro';
 import { createServerClient } from '../../lib/supabase/server';
+import { redirectIfGuest } from '../../lib/auth/guard';
 
 export const prerender = false;
 
-const claims = Astro.locals.claims;
-
-if (!claims) {
-  return Astro.redirect('/auth/login');
-}
+const redirect = redirectIfGuest(Astro);
+if (redirect) return redirect;
+const claims = Astro.locals.claims!;
 
 const supabase = createServerClient(Astro.cookies, { request: Astro.request });
 const { data: items } = await supabase
