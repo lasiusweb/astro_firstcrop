@@ -1,14 +1,15 @@
 import type { APIContext } from 'astro';
 
-export function requireAuth(context: APIContext): void {
+export function requireAuth(context: APIContext): Response | undefined {
   if (!context.locals.claims) {
-    throw context.redirect('/auth/login', 302);
+    return context.redirect('/auth/login', 302);
   }
 }
 
-export function requireAdmin(context: APIContext): void {
-  requireAuth(context);
+export function requireAdmin(context: APIContext): Response | undefined {
+  const redirect = requireAuth(context);
+  if (redirect) return redirect;
   if (context.locals.claims?.role !== 'admin') {
-    throw new Response('Forbidden', { status: 403 });
+    return new Response('Forbidden', { status: 403 });
   }
 }
