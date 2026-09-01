@@ -5,6 +5,9 @@ interface ImportMetaEnv {
   readonly PUBLIC_SUPABASE_ANON_KEY: string;
   readonly PUBLIC_EASEBUZZ_KEY: string;
   readonly PUBLIC_EASEBUZZ_MODE: 'sandbox' | 'live';
+  readonly PUBLIC_COMPANY_GSTIN?: string;
+  readonly PUBLIC_COMPANY_NAME?: string;
+  readonly PUBLIC_COMPANY_ADDRESS?: string;
 }
 
 interface ImportMeta {

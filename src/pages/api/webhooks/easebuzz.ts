@@ -29,13 +29,24 @@ export const POST: APIRoute = async ({ request }) => {
   const receivedHash = params.hash || '';
   const signatureValid = Boolean(salt) && verifySignature(params, salt!, receivedHash);
 
-  // Log every callback attempt
-  await admin.from('webhook_logs').insert({
-    provider: 'easebuzz',
-    payload: params,
-    signature_valid: signatureValid,
-    processed: false,
-  });
+  // Log every callback attempt — capture the row id so later updates
+  // target the primary key instead of fragile JSON-equality matching.
+  const { data: logRow } = await admin
+    .from('webhook_logs')
+    .insert({
+      provider: 'easebuzz',
+      payload: params,
+      signature_valid: signatureValid,
+      processed: false,
+    })
+    .select('id')
+    .single();
+  const logId: string | undefined = logRow?.id;
+
+  const markLog = (patch: Record<string, unknown>) => {
+    if (!logId) return;
+    void admin.from('webhook_logs').update(patch).eq('id', logId);
+  };
 
   if (!signatureValid) {
     return new Response('Invalid signature', { status: 401 });
@@ -53,7 +64,7 @@ export const POST: APIRoute = async ({ request }) => {
     .single();
 
   if (!order) {
-    await admin.from('webhook_logs').update({ error: 'Unknown txnid' }).eq('payload', params);
+    markLog({ error: 'Unknown txnid' });
     return new Response('Unknown txnid', { status: 404 });
   }
 
@@ -65,6 +76,9 @@ export const POST: APIRoute = async ({ request }) => {
     });
     if (!result.ok) {
       console.error('[Webhook] Transition failed:', result.error);
+      markLog({ error: `Transition failed: ${result.error}` });
+    } else {
+      markLog({ processed: true });
     }
   } else if (payStatus === 'failure' || payStatus === 'usercancelled') {
     await transitionOrder(admin, order.id, 'cancelled', {

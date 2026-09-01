@@ -12,6 +12,16 @@ export const GET: APIRoute = async (context) => {
     return new Response('Unauthorized', { status: 401 });
   }
 
+  // Company identity comes from env — an invalid GSTIN on a tax
+  // document is worse than a loud failure.
+  const companyGstin = import.meta.env.PUBLIC_COMPANY_GSTIN;
+  const companyName = import.meta.env.PUBLIC_COMPANY_NAME || 'Firstcrop';
+  const companyAddress = import.meta.env.PUBLIC_COMPANY_ADDRESS || 'India';
+  if (!companyGstin) {
+    console.error('[Invoice] PUBLIC_COMPANY_GSTIN is not configured');
+    return new Response('Invoice configuration missing', { status: 500 });
+  }
+
   const supabase = createServerClient(cookies, { request });
 
   const { data: order, error } = await supabase
@@ -55,7 +65,7 @@ export const GET: APIRoute = async (context) => {
       <div class="header">
         <div>
           <h1>Firstcrop</h1>
-          <p>Clean Agritech Pvt. Ltd.<br/>GSTIN: XXAAAA0000A1Z5<br/>Tamil Nadu, India</p>
+          <p>${escapeHtml(companyName)}<br/>GSTIN: ${escapeHtml(companyGstin)}<br/>${escapeHtml(companyAddress)}</p>
         </div>
         <div class="text-right">
           <div class="invoice-no">TAX INVOICE</div>

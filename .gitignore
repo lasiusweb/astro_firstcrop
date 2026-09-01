@@ -36,3 +36,7 @@ session-*.md
 loop-budget.md
 loop-constraints.md
 opencode.json
+test-output*.txt
+rerun-output.txt
+nptest.err
+*.err
